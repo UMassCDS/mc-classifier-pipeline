@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = "cdstemplate"
+project = "flexa"
 copyright = "2023, UMass Amherst Center for Data Science"
 author = "Luke Ruud"
 
