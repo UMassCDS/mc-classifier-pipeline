@@ -1,8 +1,8 @@
-stages:
-  count-words:
-    cmd: python src/flexa/corpus_counter_script.py data/gutenberg_counts.csv data/gutenberg --case-insensitive
-    deps:
-    - src/flexa/corpus_counter_script.py
-    - data/gutenberg
-    outs:
-    - data/gutenberg_counts.csv
+# stages:
+#   count-words:
+#     cmd: python src/mc_classifier_pipeline/corpus_counter_script.py data/gutenberg_counts.csv data/gutenberg --case-insensitive
+#     deps:
+#     - src/mc_classifier_pipeline/corpus_counter_script.py
+#     - data/gutenberg
+#     outs:
+#     - data/gutenberg_counts.csv
