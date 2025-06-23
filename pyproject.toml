@@ -26,6 +26,18 @@ dependencies = [
     "numpy",
     "pandas",
     "scikit-learn",
+    "nltk",
+    "os",
+    "mediacloud",
+    "dotenv",
+    "datetime"
+    "IPython",
+    "textblob",
+    "newspaper3k",
+    "lxml_html_clean",
+    "bs4",
+    "requests"
+
 ]
 
 [project.optional-dependencies]
