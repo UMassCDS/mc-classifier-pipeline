@@ -69,7 +69,7 @@ So what does each file in this repository do?
 ```
 .
 ├── src
-    ├── flexa     # The python package root - Any code you'd like to be able to import lives here
+    ├── mc_classifier_pipeline     # The python package root - Any code you'd like to be able to import lives here
         ├── __init__.py     # Indicates that this directory is a python package, you can put special import instructions here
         └── utils.py    # A module that handles logging and other internals
 ├── CHANGELOG.md    # Versioning information
@@ -143,10 +143,10 @@ In practice, you should write scripts that are flexible enough to change the par
 ![DAG diagram](./dag_workflow.png)
 
 <!-- ## Reusable Scripts
-Our 'experiment' here is simply counting the occurrence of words from a set of documents, in the form of text files, then writing the counts of each word to a CSV file. This operation is made available to users via the `flexa.corpus_counter_script` and by using the [`argparse` command-line parsing library](https://docs.python.org/3/library/argparse.html#module-argparse), we clearly describe the expected input parameters and options, which can be displayed using the `--help` flag. There are [other command-line parsers](https://realpython.com/comparing-python-command-line-parsing-libraries-argparse-docopt-click/) you can use, but `argparse` comes with python, so you don't need to add an extra requirement.
+Our 'experiment' here is simply counting the occurrence of words from a set of documents, in the form of text files, then writing the counts of each word to a CSV file. This operation is made available to users via the `mc_classifier_pipeline.corpus_counter_script` and by using the [`argparse` command-line parsing library](https://docs.python.org/3/library/argparse.html#module-argparse), we clearly describe the expected input parameters and options, which can be displayed using the `--help` flag. There are [other command-line parsers](https://realpython.com/comparing-python-command-line-parsing-libraries-argparse-docopt-click/) you can use, but `argparse` comes with python, so you don't need to add an extra requirement.
 
 
-Since we have made the package installable and defined it as the `corpus-counter` script in `project.toml`, users can run it using `corpus-counter`, `python -m flexa.corpus_counter_script` or `python src/flexa/corpus_counter_script.py`, but all work the same way:
+Since we have made the package installable and defined it as the `corpus-counter` script in `project.toml`, users can run it using `corpus-counter`, `python -m mc_classifier_pipeline.corpus_counter_script` or `python src/mc_classifier_pipeline/corpus_counter_script.py`, but all work the same way:
 ```
 $ corpus-counter --help 
 usage: corpus-counter [-h] [--case-insensitive] csv documents [documents ...]
@@ -162,10 +162,10 @@ options:
   --case-insensitive, -c
                         Default is to have case sensitive tokenization. Use this flag to make the token counting
                         case insensitive. Optional.
-$ python src/flexa/corpus_counter_script.py --help
+$ python src/mc_classifier_pipeline/corpus_counter_script.py --help
 usage: corpus_counter_script.py [-h] [--case-insensitive]
 ...
-$ python -m flexa.corpus_counter_script --help
+$ python -m mc_classifier_pipeline.corpus_counter_script --help
 usage: corpus_counter_script.py [-h] [--case-insensitive]
                                 csv documents [documents ...]
 
@@ -176,10 +176,10 @@ A script to generate counts of tokens in a corpus
 Using the help message, we can understand how to run the script to count all the words in the text files in `data/gutenberg` in a case-insensitive way, saving word counts to a new csv file, `data/gutenberg_counts.csv`:
 ```
 $ corpus-counter data/gutenberg_counts.csv data/gutenberg/*.txt --case-insensitive
-INFO : 2023-12-08 12:26:10,770 : flexa.corpus_counter_script : Command line arguments: Namespace(csv='data/gutenberg_counts.csv', documents=['data/gutenberg/austen-emma.txt', 'data/gutenberg/austen-persuasion.txt', 'data/gutenberg/austen-sense.txt', 'data/gutenberg/bible-kjv.txt', 'data/gutenberg/blake-poems.txt', 'data/gutenberg/bryant-stories.txt', 'data/gutenberg/burgess-busterbrown.txt', 'data/gutenberg/carroll-alice.txt', 'data/gutenberg/chesterton-ball.txt', 'data/gutenberg/chesterton-brown.txt', 'data/gutenberg/chesterton-thursday.txt'], case_insensitive=True)
-DEBUG : 2023-12-08 12:26:10,771 : flexa.word_count : CorpusCounter instantiated, tokenization pattern: \s, case insensitive: True
-INFO : 2023-12-08 12:26:10,771 : flexa.corpus_counter_script : Tokenizing document number 0: data/gutenberg/austen-emma.txt
-DEBUG : 2023-12-08 12:26:10,771 : flexa.word_count : Tokenizing '[Emma by Jane Austen 1816]
+INFO : 2023-12-08 12:26:10,770 : mc_classifier_pipeline.corpus_counter_script : Command line arguments: Namespace(csv='data/gutenberg_counts.csv', documents=['data/gutenberg/austen-emma.txt', 'data/gutenberg/austen-persuasion.txt', 'data/gutenberg/austen-sense.txt', 'data/gutenberg/bible-kjv.txt', 'data/gutenberg/blake-poems.txt', 'data/gutenberg/bryant-stories.txt', 'data/gutenberg/burgess-busterbrown.txt', 'data/gutenberg/carroll-alice.txt', 'data/gutenberg/chesterton-ball.txt', 'data/gutenberg/chesterton-brown.txt', 'data/gutenberg/chesterton-thursday.txt'], case_insensitive=True)
+DEBUG : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.word_count : CorpusCounter instantiated, tokenization pattern: \s, case insensitive: True
+INFO : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.corpus_counter_script : Tokenizing document number 0: data/gutenberg/austen-emma.txt
+DEBUG : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.word_count : Tokenizing '[Emma by Jane Austen 1816]
 ...
 ```
  -->
@@ -198,7 +198,7 @@ The stages in our word count experiment pipeline are configured in `dvc.yaml`. A
 ```
 $ dvc repro
 Running stage 'count-words':
-> python flexa/corpus_counter_script.py data/gutenberg_counts.csv data/gutenberg/*.txt --case-insensitive
+> python mc_classifier_pipeline/corpus_counter_script.py data/gutenberg_counts.csv data/gutenberg/*.txt --case-insensitive
 INFO : 2022-05-23 11:18:42,813 : __main__ : Command line arguments: Namespace(csv='data/gutenberg_counts.csv', documents=['data/gutenberg/austen-emma.txt', 'data/gutenberg/austen-persuasion.txt', 'data/gutenberg/austen-sense.txt', 'data/gutenberg/bible-kjv.txt', 'data/gutenberg/blake-poems.txt', 'data/gutenberg/bryant-stories.txt', 'data/gutenberg/burgess-busterbrown.txt', 'data/gutenberg/carroll-alice.txt', 'data/gutenberg/chesterton-ball.txt', 'data/gutenberg/chesterton-brown.txt', 'data/gutenberg/chesterton-thursday.txt'], case_insensitive=True)
 ...
 $ dvc repro
