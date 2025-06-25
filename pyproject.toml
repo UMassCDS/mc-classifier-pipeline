@@ -26,6 +26,9 @@ dependencies = [
     "numpy",
     "pandas",
     "scikit-learn",
+    "python-dotenv",
+    "tqdm",
+    "mediacloud",
 ]
 
 [project.optional-dependencies]
