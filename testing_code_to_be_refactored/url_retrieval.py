@@ -397,7 +397,7 @@ def merge_csv_with_articles(csv_path: str, json_dir: str, output_path: str) -> p
 
 def analyze_merge_results(df: pd.DataFrame):
     """
-    Analyze the results of the merge operation, providing insights into data quality.
+    Analyze the results of the merge operation.
     """
     print("\n" + "="*50)
     print("MERGE RESULTS ANALYSIS")
@@ -443,7 +443,7 @@ def analyze_merge_results(df: pd.DataFrame):
 
 # Main Execution Flow 
 def main():
-    """Main function to orchestrate the script execution."""
+    """Main function for script execution."""
 
     # 1. Load original CSV and filter Media Cloud URLs
     print("Loading original story pull CSV...")
