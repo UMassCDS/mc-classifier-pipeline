@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+testing_code_to_be_refactored/.pipeline
+testing_code_to_be_refactored/data/
+testing_code_to_be_refactored/raw_articles_data/
+testing_code_to_be_refactored/failed_urls.txt
+testing_code_to_be_refactored/merged_articles.csv
