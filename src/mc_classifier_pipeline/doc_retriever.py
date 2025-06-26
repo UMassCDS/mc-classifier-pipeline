@@ -463,7 +463,7 @@ def main():
         print("\nCreating output CSV...")
         df = pd.DataFrame(articles)
         df.to_csv(args.output, index=False)
-        print("Search results saved to {args.output}")
+        print(f"Search results saved to {args.output}")
         
         # Analyze results
         analyze_search_results(articles)
