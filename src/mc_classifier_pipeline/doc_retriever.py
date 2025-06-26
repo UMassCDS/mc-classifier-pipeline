@@ -307,7 +307,7 @@ def analyze_search_results(articles: list):
     # Text length statistics
     text_lengths = [len(article.get('text', '')) for article in articles if article.get('text')]
     if text_lengths:
-        print(f"\nText length statistics:")
+        print("\nText length statistics:")
         print(f"  Mean: {sum(text_lengths)/len(text_lengths):.0f} characters")
         print(f"  Median: {sorted(text_lengths)[len(text_lengths)//2]:.0f} characters")
         print(f"  Min: {min(text_lengths):.0f} characters")
@@ -319,7 +319,7 @@ def analyze_search_results(articles: list):
         language = article.get('language', 'unknown')
         language_counts[language] = language_counts.get(language, 0) + 1
     
-    print(f"\nLanguage breakdown:")
+    print("\nLanguage breakdown:")
     for language, count in language_counts.items():
         print(f"  {language}: {count}")
 
@@ -460,17 +460,17 @@ def main():
             save_articles_index(articles_index, args.index_file)
         
         # Create output CSV with search results
-        print(f"\nCreating output CSV...")
+        print("\nCreating output CSV...")
         df = pd.DataFrame(articles)
         df.to_csv(args.output, index=False)
-        print(f"Search results saved to {args.output}")
+        print("Search results saved to {args.output}")
         
         # Analyze results
         analyze_search_results(articles)
     else:
         print("No new articles found for the query.")
     
-    print(f"\nPipeline complete.")
+    print("\nPipeline complete.")
 
 if __name__ == "__main__":
     main() 
