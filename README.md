@@ -9,11 +9,16 @@ This template draws a lot of inspiration from [Cookiecutter Data Science](https:
 
 - [Overview](#overview)
 - [Getting Started](#getting-started)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Directory Structure](#directory-structure)
+  - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
+  - [Specifying Requirements](#specifying-requirements)
+    - [Requirements via conda environment files](#requirements-via-conda-environment-files)
+    - [Containerized applications](#containerized-applications)
+  - [Directory Structure](#directory-structure)
+- [Communication Tools and Code](#communication-tools-and-code)
 - [Tests](#tests)
-- [Documentation](#documentation)
+- [Reproducible Experiments](#reproducible-experiments)
+- [Data Dependencies Tools](#data-dependencies-tools)
+- [A Note on Notebooks](#a-note-on-notebooks)
 
 # Overview
 This Repository sets up a Media Cloud pipeline that takes a user query, retrieves relevant full-text media articles from Media Cloud, importa it into a user defined Label Studio project, and produces both an annotated dataset and a trained classifier model. Designed for Media Cloud engineers and communication researchers, the pipeline simplifies the end-to-end process of sourcing, labeling, and modeling media content. It eliminates the need for repetitive, manual setup and enables more targeted analysis through iterative query refinement. By going improving the initial keyword matching, the pipeline supports more nuanced exploration of patterns in media coverage that are difficult to capture through traditional search alone.
