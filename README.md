@@ -1,5 +1,5 @@
 # Media Cloud Query + Model toolkit
-mediacloud-query-plus-model-toolkit
+
 <!-- This repository presents some opinionated guidelines for creating a data science and machine learning project in Python, using the simple example of scripts for counting words in text documents. By following these guidelines you can make it easy for your code to be tested and understood by others (or yourself months from now), so they can reproduce your experiments.
 
 These are just guidelines, not strict rules, so feel free to alter them to meet your needs. Just keep in mind the goal is that others can understand and run your code, even if you aren't around to ask questions to!
