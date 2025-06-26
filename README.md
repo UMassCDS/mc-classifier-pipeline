@@ -1,10 +1,20 @@
-# PythonProjectTemplate
+# Media Cloud Query + Model toolkit
 
 <!-- This repository presents some opinionated guidelines for creating a data science and machine learning project in Python, using the simple example of scripts for counting words in text documents. By following these guidelines you can make it easy for your code to be tested and understood by others (or yourself months from now), so they can reproduce your experiments.
 
 These are just guidelines, not strict rules, so feel free to alter them to meet your needs. Just keep in mind the goal is that others can understand and run your code, even if you aren't around to ask questions to!
 
 This template draws a lot of inspiration from [Cookiecutter Data Science](https://drivendata.github.io/cookiecutter-data-science/). Please read their awesome explanations! -->
+## Table of Contents
+
+- [Overview](#overview)
+- [Getting Started](#getting-started)
+  - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
+- [Data Dependencies Tools](#data-dependencies-tools)
+- [A Note on Notebooks](#a-note-on-notebooks)
+
+# Overview
+This Repository sets up a Media Cloud pipeline that takes a user query, retrieves relevant full-text media articles from Media Cloud, importa it into a user defined Label Studio project, and produces both an annotated dataset and a trained classifier model. Designed for Media Cloud engineers and communication researchers, the pipeline simplifies the end-to-end process of sourcing, labeling, and modeling media content. It eliminates the need for repetitive, manual setup and enables more targeted analysis through iterative query refinement. By going improving the initial keyword matching, the pipeline supports more nuanced exploration of patterns in media coverage that are difficult to capture through traditional search alone.
 
 # Getting Started
 ## Installing Dependencies and Packages
