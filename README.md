@@ -8,15 +8,8 @@ This template draws a lot of inspiration from [Cookiecutter Data Science](https:
 ## Table of Contents
 
 - [Overview](#overview)
-- [Getting Started](#getting-started)
+- [Geatting Started](#getting-started)
   - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
-  - [Specifying Requirements](#specifying-requirements)
-    - [Requirements via conda environment files](#requirements-via-conda-environment-files)
-    - [Containerized applications](#containerized-applications)
-  - [Directory Structure](#directory-structure)
-- [Communication Tools and Code](#communication-tools-and-code)
-- [Tests](#tests)
-- [Reproducible Experiments](#reproducible-experiments)
 - [Data Dependencies Tools](#data-dependencies-tools)
 - [A Note on Notebooks](#a-note-on-notebooks)
 
