@@ -8,7 +8,7 @@ This template draws a lot of inspiration from [Cookiecutter Data Science](https:
 ## Table of Contents
 
 - [Overview](#overview)
-- [Geatting Started](#getting-started)
+- [Getting Started](#getting-started)
   - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
 - [Data Dependencies Tools](#data-dependencies-tools)
 - [A Note on Notebooks](#a-note-on-notebooks)
