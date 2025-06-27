@@ -1,0 +1,59 @@
+SoJo source,Homepage URL,Present in Media Cloud (yes/no),Has health stories (yes/no),Has climate stories(yes/no),Notes/Questions
+BBC: “People Fixing the World”,https://www.bbc.co.uk/programmes/p04d42vf,,,,This is a podcast/youtube series
+BBC: “My Perfect Country”,https://www.bbc.co.uk/programmes/p03gsc50,,,,This is a podcast/youtube series
+BBC: “Crossing Divides”,https://www.bbc.com/news/topics/czpqp1q456vt,,,,This is a podcast/youtube series
+BBC: “Future Planet”,https://www.bbc.co.uk/future/future-planet,No,Yes,Yes,
+POLITICO Magazine: “What Works” + “What Works Next”,https://www.politico.com/magazine/what-works-next/,No,no,no,
+The Seattle Times: “Education Lab” + “Traffic Lab” + “Project Homeless”,https://www.seattletimes.com/education-lab/,Yes,Yes,No,
+“How Do We Fix It?”,,,,,do we include this? It's a podcast
+“Finding Fixes”,,,,,do we include this? It's a podcast
+The New York Times: “Fixes”,https://www.nytimes.com/column/fixes,Yes,Yes,Yes,
+Fast Company: “Impact”,https://www.fastcompany.com/impact,no,yes,yes,
+Boston Globe: “Things That Work”,https://apps.bostonglobe.com/metro/graphics/2017/06/globe-coverage/,yes,yes,no,
+Philadelphia Citizen: “Ideas we Should Steal”,https://thephiladelphiacitizen.org/tag/ideas-we-should-steal-philly/,no,yes,yes,
+The Montgomery Advertiser: “SoJo MGM”,DNE -> https://www.montgomeryadvertiser.com/sojomgm/,no,no,no,The removed the landing page for SoJo + I couldn't find any health/climate stories.
+Montana Free Press: “Long Streets”,https://montanafreepress.org/,yes,yes,yes,"although it has health and climate stories, they are regular reporting styled rather than sojo. also note that I am talking abt MIFP in general rather than the long streets program which is exclusivly about the network of streets, roads and highways, discussing teh economics and political side of them."
+NBC News: “Reviving Detroit”,https://www.youtube.com/playlist?list=PL0tDb4jw6kPyNwAhhXJI54l5Uxzssa7oC,NBC - Breaking news is,no,no,this is a video. Also isn't solutions based journalism
+Alaska Public Media: “Solutions Desk”,https://alaskapublic.org/tags/solutions-desk,no,yes,yes,
+Milwaukee Journal Sentinel: “Wisconsin Ideas Lab”,https://www.jsonline.com/,yes,yes,no,not sojo
+The Hechinger Report: “Solutions”,https://hechingerreport.org/special-reports/solutions/,no,no,yes,
+City Lab: “Solutions”,https://www.bloomberg.com/citylab,yes,no,yes,
+bioGraphic: “Solutions”,https://www.biographic.com/solutions/,yes,no,yes,Not sure about this one being present on media cloud
+The Richland Source: “Solutions”,https://www.richlandsource.com/solutions/,yes,yes,no,
+New Hampshire Union Leader: “Silver Linings” + “Beyond the Stigma” + “What’s Working””,"https://www.unionleader.com/news/silver_linings/, https://www.unionleader.com/news/stigma/, https://www.unionleader.com/news/business/whats_working/",yes,yes,"yes, but I couldn't find solutions based ones",
+Apolitical,https://apolitical.co/home/,yes,no,yes,
+NationSwell,https://nationswell.com/,no,no,no,
+Christian Science Monitor,https://www.csmonitor.com/,yes,yes,yes,very good source with a lot of stories on both health and climate
+YES! Magazine,https://www.yesmagazine.org/,yes,yes,yes,
+Positive News,https://www.positive.news/,yes,yes,yes,Present in media cloud but not collecting stories
+Ensia,https://ensia.com/,yes,yes,yes,Present in media cloud but not collecting stories. Has more climate stories
+La Voz de Guanacaste,https://vozdeguanacaste.com/,yes,yes,no,
+Next City,https://nextcity.org,yes,yes,yes,
+Resolve Philly: “Re-entry Project”,https://thereentryproject.org/,yes,no,no,Present in media cloud but not collecting stories
+Resolve Philly: “Broke in Philly”,https://brokeinphilly.org/,yes,no,no,Present in media cloud but not collecting stories 
+Granite State News Collaborative: “Solutions”,https://www.collaborativenh.org/projects,yes,yes,no,"Present in media cloud but not collecting stories , Focus on mental health"
+The Marshall Project,https://www.themarshallproject.org/,yes,yes,no,"Climate is mentioned in some stories, but the focus is not climate"
+Vox: “Future Perfect”,https://www.vox.com/future-perfect,yes?,yes,yes,"my_query = 'url:""vox.com/future-perfect/*""' gave me no stories, but vox.com is definitely present on media cloud. Maybe I need to write the query differently?"
+Shareable,https://www.shareable.net/,yes,no,yes,Present in media cloud but not collecting stories
+The Guardian: “The Upside”,https://www.theguardian.com/world/series/the-upside,yes?,yes,yes,"my_query = 'url:""https://www.theguardian.com/world/series/the-upside*""' did not help but theguardian.com is available"
+Things That Work Uganda,,,,,Defunct - couldn't find working website
+High Country News: “What Works”,https://www.hcn.org/topic/what-works/,yes?,yes,yes,"Only one climate story. my_query = 'url:""https://www.hcn.org/topic/what-works/*""' didn't help but hcn.org is available. "
+Reasons to Be Cheerful,https://reasonstobecheerful.world/,yes ,yes,yes,Present in media cloud but not collecting stories
+Mongabay: “Environment and Her”,https://india.mongabay.com/series/environment-and-her-women-and-environment/,yes,no,yes,"Environment and her is from Mongabay india, but MC only has Mongabay listed."
+GRIST: “The Fix”,https://grist.org/solutions/,yes,yes,yes,"Primary focus is on climate, but has a section for health too."
+INKLINE,http://the-inkline.com/,no,yes,yes,Present in media cloud but not collecting stories. Also only 6 sojo stories
+Making Contact,https://focmedia.org/,no,yes,yes,This is a radio show and podcast
+Médiacités,https://www.mediacites.fr/,yes,yes,yes,"French, not many healthcare stories"
+The Trace “How We Fix This”,https://www.thetrace.org/projects/how-we-fix-this-gun-violence-solutions/,yes,no,no,focus is one gun violance + stories per week unknown on MC
+"Imagine, demain le monde",https://kiosque.imagine-magazine.com/,no,no,yes,"french. not alot of stories overall, but split between environment and war."
+Nice-Matin,https://www.nicematin.com/,no,yes,no,not sojo
+Washington Post “Climate Solutions”,https://www.washingtonpost.com/climate-solutions/,no?(only the technology section),no,yes,seems like a really good for sojo examples
+Transitions Online,https://tol.org,yes,yes,yes,Very few stories
+Minority Africa,https://minorityafrica.org,no,yes,yes,"Some of them are not sojo, the solutions are not very concrete and they read like opinion pieces"
+Nigeria Health Watch,https://nigeriahealthwatch.com,yes,yes,no,"Present in Media Cloud, but not collecting stories "
+HotHouse Solutions,https://hothouse.substack.com ,no,no,yes,
+News48,https://news48.it,no,yes,yes,Italian with an English section
+What’s Next Magazine,,,,,Defunct - couldn't find working website
+Lithuania Radio and Television (LRT),http://www.lrt.lt,yes,yes,yes,"There are very few stories about climate and health mixed in with general news. Main page is in Lithuanian, but they do have an English subsection on their website."
+America First?,https://www.youtube.com/@americafirstshow1878,,,,Youtube channel with 35 subscribers
+El Colectivo 506,https://elcolectivo506.com,no,yes,yes,"Spanish, based out of Costa Rica"
