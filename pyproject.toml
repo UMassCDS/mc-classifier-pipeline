@@ -23,9 +23,12 @@ classifiers = [
 # All the dependencies needed for running your module go here
 dependencies = [
     "dvc>=2.42.0",
+    "mediacloud",
     "numpy",
     "pandas",
+    "python-dotenv",
     "scikit-learn",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +48,7 @@ dev = [
 # If your project contains scripts you'd like to be available command line, you can define them here.
 # The value must be of the form "<package_name>:<module_name>.<function>"
 [project.scripts]
+retrieve-mc-docs = "mc_classifier_pipeline.doc_retriever:main"
 
 # Add customizations to the Ruff linter as described on https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
