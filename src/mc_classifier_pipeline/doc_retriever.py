@@ -103,7 +103,11 @@ def is_article_retrieved(story_id: str, articles_index: dict) -> bool:
 
 
 def search_mediacloud_by_query(
-    query: str, start_date: Optional[dt.date] = None, end_date: Optional[dt.date] = None, limit: int = 100, articles_index: Optional[dict] = None
+    query: str,
+    start_date: Optional[dt.date] = None,
+    end_date: Optional[dt.date] = None,
+    limit: int = 100,
+    articles_index: Optional[dict] = None,
 ) -> list:
     """
     Search Media Cloud for articles using a query string, avoiding re-retrieval of existing articles.
@@ -309,54 +313,31 @@ def parse_arguments():
             python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output data/search_results.csv
         """,
     )
-    parser.add_argument("--query", 
-                        type=str, 
-                        required=True, 
-                        help="Search query for Media Cloud API")
-    
-    parser.add_argument("--output", 
-                        type=Path, 
-                        default=Path("data/search_results.csv"), 
-                        help="Output CSV file path")
-    
-    parser.add_argument("--raw-dir", 
-                        type=Path, 
-                        default=RAW_ARTICLES_DIR, 
-                        help="Directory to store raw article JSON files"
+    parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
+
+    parser.add_argument("--output", type=Path, default=Path("data/search_results.csv"), help="Output CSV file path")
+
+    parser.add_argument(
+        "--raw-dir", type=Path, default=RAW_ARTICLES_DIR, help="Directory to store raw article JSON files"
     )
 
-    parser.add_argument("--failed-log", 
-                        type=Path, 
-                        default=FAILED_URLS_LOG, 
-                        help="Path to log failed URLs")
-    
-    parser.add_argument("--index-file", 
-                        type=Path, 
-                        default=ARTICLES_INDEX_FILE, 
-                        help="Path to articles index file")
-    
-    parser.add_argument("--no-save-json", 
-                        action="store_true", 
-                        help="Skip saving individual JSON files")
-    
-    parser.add_argument("--force-reprocess", 
-                        action="store_true", 
-                        help="Force reprocessing of already retrieved articles")
-    
-    parser.add_argument("--limit", 
-                        type=int, 
-                        default=100, 
-                        help="Maximum number of results for query search")
-    
-    parser.add_argument("--start-date", 
-                        required=True, 
-                        type=str, 
-                        help="Start date for query search (YYYY-MM-DD format)")
-    
-    parser.add_argument("--end-date", 
-                        required=True, 
-                        type=str, 
-                        help="End date for query search (YYYY-MM-DD format)")
+    parser.add_argument("--failed-log", type=Path, default=FAILED_URLS_LOG, help="Path to log failed URLs")
+
+    parser.add_argument("--index-file", type=Path, default=ARTICLES_INDEX_FILE, help="Path to articles index file")
+
+    parser.add_argument("--no-save-json", action="store_true", help="Skip saving individual JSON files")
+
+    parser.add_argument(
+        "--force-reprocess", action="store_true", help="Force reprocessing of already retrieved articles"
+    )
+
+    parser.add_argument("--limit", type=int, default=100, help="Maximum number of results for query search")
+
+    parser.add_argument(
+        "--start-date", required=True, type=str, help="Start date for query search (YYYY-MM-DD format)"
+    )
+
+    parser.add_argument("--end-date", required=True, type=str, help="End date for query search (YYYY-MM-DD format)")
 
     return parser.parse_args()
 
@@ -366,7 +347,7 @@ def main():
     Main function to run the Media Cloud query search and article processing pipeline.
     This function parses command-line arguments, loads a persistent index of articles,
     searches Media Cloud for new articles based on a query, saves the results,
-    and provides a summary analysis. 
+    and provides a summary analysis.
     """
     args = parse_arguments()
 
