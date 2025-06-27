@@ -1,12 +1,20 @@
 import pandas as pd
 import os
 import json
-import hashlib
 import datetime as dt
 import argparse
+import logging
 from dotenv import load_dotenv
 from tqdm import tqdm
 import mediacloud.api
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("data/doc_retriever.log"), logging.StreamHandler()],
+)
+logger = logging.getLogger(__name__)
 
 # Configuration and constants
 load_dotenv()
@@ -19,17 +27,12 @@ ARTICLES_INDEX_FILE = "data/articles_index.json"
 search_api = None
 try:
     search_api = mediacloud.api.SearchApi(MC_API_KEY)
-    print("Media Cloud API initialized.")
+    logger.info("Media Cloud API initialized.")
 except Exception as e:
-    print(f"Could not initialize Media Cloud API. Check your key. Error: {e}.")
-    print("Article fetching from Media Cloud will be skipped.")
+    logger.error(f"Could not initialize Media Cloud API. Check your key. Error: {e}.")
+    logger.warning("Article fetching from Media Cloud will be skipped.")
 
 # Helper Functions
-
-
-def get_url_hash(url: str) -> str:
-    """Generate consistent hash for URL."""
-    return hashlib.sha256(url.encode("utf-8")).hexdigest()
 
 
 def load_articles_index(index_file: str) -> dict:
@@ -40,14 +43,14 @@ def load_articles_index(index_file: str) -> dict:
         index_file: Path to the articles index file
 
     Returns:
-        Dictionary mapping URLs to article metadata
+        Dictionary mapping story IDs to article metadata
     """
     if os.path.exists(index_file):
         try:
             with open(index_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Error loading articles index: {e}")
+            logger.error(f"Error loading articles index: {e}")
             return {}
     return {}
 
@@ -57,31 +60,31 @@ def save_articles_index(index: dict, index_file: str):
     Save the persistent index of retrieved articles.
 
     Args:
-        index: Dictionary mapping URLs to article metadata
+        index: Dictionary mapping story IDs to article metadata
         index_file: Path to the articles index file
     """
     try:
         with open(index_file, "w", encoding="utf-8") as f:
             json.dump(index, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        print(f"Error saving articles index: {e}")
+        logger.error(f"Error saving articles index: {e}")
 
 
-def is_article_retrieved(url: str, articles_index: dict) -> bool:
+def is_article_retrieved(story_id: str, articles_index: dict) -> bool:
     """
     Check if an article has already been retrieved.
 
     Args:
-        url: Article URL
+        story_id: Media Cloud story ID
         articles_index: Dictionary of retrieved articles
 
     Returns:
         True if article exists and has valid content
     """
-    if url not in articles_index:
+    if story_id not in articles_index:
         return False
 
-    article_info = articles_index[url]
+    article_info = articles_index[story_id]
     status = article_info.get("status", "unknown")
     text_length = article_info.get("text_length", 0)
 
@@ -97,8 +100,8 @@ def search_mediacloud_by_query(
 
     Args:
         query: Search query string
-        start_date: Start date for search (default: 1 year ago)
-        end_date: End date for search (default: today)
+        start_date: Start date for search
+        end_date: End date for search
         limit: Maximum number of results to return
         articles_index: Dictionary of already retrieved articles
 
@@ -106,16 +109,11 @@ def search_mediacloud_by_query(
         List of article dictionaries with URLs and metadata
     """
     if not search_api:
-        print("Media Cloud API not initialized. Cannot search.")
+        logger.error("Media Cloud API not initialized. Cannot search.")
         return []
 
-    if start_date is None:
-        start_date = dt.date.today() - dt.timedelta(days=365)
-    if end_date is None:
-        end_date = dt.date.today()
-
-    print(f"Searching Media Cloud for: '{query}'")
-    print(f"Date range: {start_date} to {end_date}")
+    logger.info(f"Searching Media Cloud for: '{query}'")
+    logger.info(f"Date range: {start_date} to {end_date}")
 
     articles = []
     new_articles = 0
@@ -125,7 +123,7 @@ def search_mediacloud_by_query(
         results = search_api.story_list(query, start_date, end_date)
         if results and len(results[0]) > 0:
             stories = results[0]
-            print(f"Found {len(stories)} stories")
+            logger.info(f"Found {len(stories)} stories")
 
             for story in tqdm(stories[:limit], desc=f"Processing stories (max {limit})"):
                 story_id = story["id"]
@@ -136,11 +134,10 @@ def search_mediacloud_by_query(
                     continue
 
                 # Check if article already exists
-                if articles_index and is_article_retrieved(url, articles_index):
+                if articles_index and is_article_retrieved(story_id, articles_index):
                     existing_articles += 1
                     # Load existing article data
-                    url_hash = get_url_hash(url)
-                    filename = f"{url_hash}.json"
+                    filename = f"{story_id}.json"
                     filepath = os.path.join(RAW_ARTICLES_DIR, filename)
 
                     if os.path.exists(filepath):
@@ -149,7 +146,7 @@ def search_mediacloud_by_query(
                                 existing_article = json.load(f)
                                 articles.append(existing_article)
                         except Exception as e:
-                            print(f"Error loading existing article {url}: {e}")
+                            logger.error(f"Error loading existing article {story_id}: {e}")
                     continue
 
                 # New article - process it
@@ -169,11 +166,11 @@ def search_mediacloud_by_query(
                 }
                 articles.append(article_info)
         else:
-            print("No results found for the query.")
+            logger.warning("No results found for the query.")
     except Exception as e:
-        print(f"Error searching Media Cloud: {e}")
+        logger.error(f"Error searching Media Cloud: {e}")
 
-    print(f"Processing complete: {new_articles} new articles, {existing_articles} existing articles")
+    logger.info(f"Processing complete: {new_articles} new articles, {existing_articles} existing articles")
     return articles
 
 
@@ -188,24 +185,25 @@ def save_articles_from_query(articles: list, raw_articles_dir: str, failed_urls_
         articles_index: Dictionary of retrieved articles to update
     """
     if not articles:
-        print("No articles to save.")
+        logger.info("No articles to save.")
         return
 
-    print(f"Saving {len(articles)} articles...")
+    logger.info(f"Saving {len(articles)} articles...")
     failed_urls = []
     new_articles = 0
 
     for article in tqdm(articles, desc="Saving articles"):
         url = article.get("url", "")
-        if not url:
+        story_id = article.get("story_id", "")
+
+        if not url or not story_id:
             continue
 
         # Check if this is a new article (not in index)
-        is_new = articles_index is None or url not in articles_index
+        is_new = articles_index is None or story_id not in articles_index
 
-        # Generate filename based on URL hash
-        url_hash = get_url_hash(url)
-        filename = f"{url_hash}.json"
+        # Generate filename based on story ID
+        filename = f"{story_id}.json"
         filepath = os.path.join(raw_articles_dir, filename)
 
         # Save article data
@@ -215,7 +213,7 @@ def save_articles_from_query(articles: list, raw_articles_dir: str, failed_urls_
 
             # Update index
             if articles_index is not None:
-                articles_index[url] = {
+                articles_index[story_id] = {
                     "filename": filename,
                     "filepath": filepath,
                     "status": article.get("status", "unknown"),
@@ -223,7 +221,7 @@ def save_articles_from_query(articles: list, raw_articles_dir: str, failed_urls_
                     "title": article.get("title", ""),
                     "text_length": len(article.get("text", "")),
                     "query": article.get("query", ""),
-                    "story_id": article.get("story_id", ""),
+                    "url": url,
                     "publish_date": article.get("publish_date", ""),
                 }
 
@@ -233,7 +231,7 @@ def save_articles_from_query(articles: list, raw_articles_dir: str, failed_urls_
                 new_articles += 1
 
         except Exception as e:
-            print(f"Error saving {url}: {e}")
+            logger.error(f"Error saving {story_id}: {e}")
             failed_urls.append(url)
 
     # Log failed URLs
@@ -241,9 +239,9 @@ def save_articles_from_query(articles: list, raw_articles_dir: str, failed_urls_
         with open(failed_urls_log, "w") as f:
             for url in failed_urls:
                 f.write(f"{url}\n")
-        print(f"Failed URLs logged to {failed_urls_log}")
+        logger.info(f"Failed URLs logged to {failed_urls_log}")
 
-    print(f"Saving complete. {new_articles} new articles saved, {len(failed_urls)} articles failed.")
+    logger.info(f"Saving complete. {new_articles} new articles saved, {len(failed_urls)} articles failed.")
 
 
 def load_all_article_json_data(json_dir: str) -> dict:
@@ -254,15 +252,15 @@ def load_all_article_json_data(json_dir: str) -> dict:
         json_dir: Directory containing JSON files
 
     Returns:
-        Dictionary mapping URLs to article data
+        Dictionary mapping story IDs to article data
     """
     articles_data = {}
 
     if not os.path.exists(json_dir):
-        print(f"Directory {json_dir} does not exist.")
+        logger.warning(f"Directory {json_dir} does not exist.")
         return articles_data
 
-    print(f"Loading article data from {json_dir}...")
+    logger.info(f"Loading article data from {json_dir}...")
 
     for filename in tqdm(os.listdir(json_dir), desc="Loading JSON files"):
         if not filename.endswith(".json"):
@@ -272,14 +270,14 @@ def load_all_article_json_data(json_dir: str) -> dict:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                url = data.get("url", "")
-                if url:
-                    articles_data[url] = data
+                story_id = data.get("story_id", "")
+                if story_id:
+                    articles_data[story_id] = data
         except Exception as e:
-            print(f"Error reading {filepath}: {e}")
+            logger.error(f"Error reading {filepath}: {e}")
             continue
 
-    print(f"Loaded data for {len(articles_data)} articles.")
+    logger.info(f"Loaded data for {len(articles_data)} articles.")
     return articles_data
 
 
@@ -291,18 +289,18 @@ def analyze_search_results(articles: list):
         articles: List of article dictionaries
     """
     if not articles:
-        print("No articles to analyze.")
+        logger.info("No articles to analyze.")
         return
 
     total_articles = len(articles)
     successful = len([a for a in articles if a["status"] == "success"])
     failed = total_articles - successful
 
-    print("\n=== Search Results Analysis ===")
-    print(f"Total articles found: {total_articles}")
-    print(f"Successful retrievals: {successful}")
-    print(f"Failed retrievals: {failed}")
-    print(f"Success rate: {successful / total_articles * 100:.1f}%")
+    logger.info("\n=== Search Results Analysis ===")
+    logger.info(f"Total articles found: {total_articles}")
+    logger.info(f"Successful retrievals: {successful}")
+    logger.info(f"Failed retrievals: {failed}")
+    logger.info(f"Success rate: {successful / total_articles * 100:.1f}%")
 
     # Status breakdown
     status_counts = {}
@@ -310,18 +308,18 @@ def analyze_search_results(articles: list):
         status = article.get("status", "unknown")
         status_counts[status] = status_counts.get(status, 0) + 1
 
-    print("\nStatus breakdown:")
+    logger.info("\nStatus breakdown:")
     for status, count in status_counts.items():
-        print(f"  {status}: {count}")
+        logger.info(f"  {status}: {count}")
 
     # Text length statistics
     text_lengths = [len(article.get("text", "")) for article in articles if article.get("text")]
     if text_lengths:
-        print("\nText length statistics:")
-        print(f"  Mean: {sum(text_lengths) / len(text_lengths):.0f} characters")
-        print(f"  Median: {sorted(text_lengths)[len(text_lengths) // 2]:.0f} characters")
-        print(f"  Min: {min(text_lengths):.0f} characters")
-        print(f"  Max: {max(text_lengths):.0f} characters")
+        logger.info("\nText length statistics:")
+        logger.info(f"  Mean: {sum(text_lengths) / len(text_lengths):.0f} characters")
+        logger.info(f"  Median: {sorted(text_lengths)[len(text_lengths) // 2]:.0f} characters")
+        logger.info(f"  Min: {min(text_lengths):.0f} characters")
+        logger.info(f"  Max: {max(text_lengths):.0f} characters")
 
     # Language breakdown
     language_counts = {}
@@ -329,9 +327,9 @@ def analyze_search_results(articles: list):
         language = article.get("language", "unknown")
         language_counts[language] = language_counts.get(language, 0) + 1
 
-    print("\nLanguage breakdown:")
+    logger.info("\nLanguage breakdown:")
     for language, count in language_counts.items():
-        print(f"  {language}: {count}")
+        logger.info(f"  {language}: {count}")
 
 
 def parse_arguments():
@@ -411,7 +409,7 @@ def main():
     """
     args = parse_arguments()
 
-    print("Starting Media Cloud query search and article processing pipeline...")
+    logger.info("Starting Media Cloud query search and article processing pipeline...")
 
     # Ensure directories exist
     os.makedirs(args.raw_dir, exist_ok=True)
@@ -422,7 +420,7 @@ def main():
     articles_index = {}
     if not args.force_reprocess:
         articles_index = load_articles_index(args.index_file)
-        print(f"Loaded index with {len(articles_index)} existing articles")
+        logger.info(f"Loaded index with {len(articles_index)} existing articles")
 
     # Parse dates
     start_date = None
@@ -432,14 +430,14 @@ def main():
         try:
             start_date = dt.datetime.strptime(args.start_date, "%Y-%m-%d").date()
         except ValueError:
-            print(f"Invalid start date format: {args.start_date}. Use YYYY-MM-DD format.")
+            logger.error(f"Invalid start date format: {args.start_date}. Use YYYY-MM-DD format.")
             return
 
     if args.end_date:
         try:
             end_date = dt.datetime.strptime(args.end_date, "%Y-%m-%d").date()
         except ValueError:
-            print(f"Invalid end date format: {args.end_date}. Use YYYY-MM-DD format.")
+            logger.error(f"Invalid end date format: {args.end_date}. Use YYYY-MM-DD format.")
             return
 
     # Search Media Cloud
@@ -453,17 +451,17 @@ def main():
             save_articles_index(articles_index, args.index_file)
 
         # Create output CSV with search results
-        print("\nCreating output CSV...")
+        logger.info("\nCreating output CSV...")
         df = pd.DataFrame(articles)
         df.to_csv(args.output, index=False)
-        print(f"Search results saved to {args.output}")
+        logger.info(f"Search results saved to {args.output}")
 
         # Analyze results
         analyze_search_results(articles)
     else:
-        print("No new articles found for the query.")
+        logger.warning("No new articles found for the query.")
 
-    print("\nPipeline complete.")
+    logger.info("\nPipeline complete.")
 
 
 if __name__ == "__main__":
