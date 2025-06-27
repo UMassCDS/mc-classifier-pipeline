@@ -262,7 +262,7 @@ def analyze_search_results(articles: list):
     Calculates and logs summary statistics for the retrieved articles.
 
     This includes overall success rate, a breakdown of article statuses,
-    text length statistics, and a language breakdown. [cite: 65]
+    text length statistics, and a language breakdown.
 
     Args:
         articles: List of article dictionaries
@@ -353,7 +353,6 @@ def main():
 
     logger.info("Starting Media Cloud query search and article processing pipeline...")
 
-    # Ensure directories exist; Path objects have a .parent attribute
     args.raw_dir.mkdir(parents=True, exist_ok=True)
     args.failed_log.parent.mkdir(parents=True, exist_ok=True)
     args.index_file.parent.mkdir(parents=True, exist_ok=True)
