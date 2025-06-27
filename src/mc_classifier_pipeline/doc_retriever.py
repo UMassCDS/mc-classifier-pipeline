@@ -395,6 +395,7 @@ def main():
         analyze_search_results(articles)
     else:
         logger.warning("No new articles found for the query.")
+        logger.warning("No new articles found for the query.")
 
     logger.info("Pipeline complete.")
 
