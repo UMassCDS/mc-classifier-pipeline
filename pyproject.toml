@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mc_classifier_pipeline"
-version = "2.1.0"
-description = "A template repo for data science and machine learning projects at UMass Center for Data Science."
+version = "0.0.1"
+description = "Pipelines for preparing documents from Media Cloud's news archive for annotation and machine learning."
 readme = "README.md"
 
 # What version of python does your library work with?
