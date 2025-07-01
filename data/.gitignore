@@ -1,1 +1,3 @@
-/gutenberg_counts.csv
+raw_articles/
+failed_urls.txt
+articles_index.json
