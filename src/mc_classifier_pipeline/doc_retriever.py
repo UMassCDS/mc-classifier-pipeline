@@ -347,6 +347,13 @@ def parse_arguments():
 
     parser.add_argument("--end-date", required=True, type=str, help="End date for query search (YYYY-MM-DD format)")
 
+    #json formatted for label studio
+    parser.add_argument(
+        "--output-tasks-for-label-studio",
+        type=Path,
+        help="Optional: write Label Studio JSON list of {data:{…}} tasks"
+    )
+
     return parser.parse_args()
 
 
@@ -389,6 +396,25 @@ def main():
         df = pd.DataFrame(articles)
         df.to_csv(args.output, index=False)
         logger.info(f"Search results saved to {args.output}")
+        
+        #if requested, then write json in label studio format
+        if args.output_tasks_for_label_studio:
+            tasks = []
+            for article in articles:
+                text = article.get("text", "").strip()
+                if not text:
+                    continue
+                # build the minimal {data:{…}} dict
+                data = {"text": text}
+                # optionally include metadata fields(Arav was storing these)
+                for key in ("title", "url", "language", "publish_date"):
+                    if article.get(key):
+                        data[key] = article[key]
+                tasks.append({"data": data})
+
+            with open(args.output_tasks_for_label_studio, "w", encoding="utf-8") as f:
+                json.dump(tasks, f, ensure_ascii=False, indent=2)
+            logger.info(f"Label Studio task file saved to {args.output_tasks_for_label_studio}")
 
         analyze_search_results(articles)
     else:
