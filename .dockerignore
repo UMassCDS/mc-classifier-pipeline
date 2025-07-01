@@ -1,0 +1,14 @@
+env/
+.git/
+.dvc/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.db
+*.sqlite3
+*.paraquet
+*.arrow
+data/raw_articles/
+
