@@ -14,7 +14,7 @@ services:
       - ./data:/app/data                 
 
     entrypoint: ["python", "-m", "mc_classifier_pipeline.doc_retriever"]
-    command: ["--help"]        
+    command: ["--query", "election", "--start-date", "2024-12-01", "--end-date", "2024-12-31", "--limit", "10", "--output", "data/search_results.csv"]        
 
     # ports:
     #   - "8000:8000"          
