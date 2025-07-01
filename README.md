@@ -27,6 +27,16 @@ Use these steps for setting up a development environment to install and work wit
 	<!-- - If you will be changing the code and running tests, you can install it by running `pip install -e .[test,dev]`. The `-e/--editable` flag means local changes to the project code will always be available with the package is imported. You wouldn't use this in production, but it's useful for development.
   - Note for zsh users: use `pip install -e .'[test,dev]'` -->
 
+### Environment Variables
+
+To use the document retriever script, you must set the `MC_API_KEY` environment variable. The script uses the `python-dotenv` library, so you can create a `.env` file in the project's root directory:
+
+```
+MC_API_KEY="YOUR_MEDIA_CLOUD_API_KEY_HERE"
+```
+
+The script will automatically load this variable.
+
 
 For example, if you use Conda, you would run the following to create an environment named `template` with python version 3.10, then activate it and install the package in developer mode:
 ```

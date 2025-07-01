@@ -8,3 +8,5 @@ You should also add project tags for each release in Github, see [Managing relea
 
 ## [Unreleased]
 
+- Add `doc_retriever` script for fetching articles from Media Cloud.
+
