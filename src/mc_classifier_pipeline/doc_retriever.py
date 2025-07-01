@@ -108,6 +108,7 @@ def search_mediacloud_by_query(
     end_date: Optional[dt.date] = None,
     limit: int = 100,
     articles_index: Optional[dict] = None,
+    raw_articles_dir: Optional[Path] = None,
 ) -> list:
     """
     Search Media Cloud for articles using a query string, avoiding re-retrieval of existing articles.
@@ -118,6 +119,7 @@ def search_mediacloud_by_query(
         end_date: End date for search
         limit: Maximum number of results to return
         articles_index: Dictionary of already retrieved articles
+        raw_articles_dir: Directory where existing articles are stored
 
     Returns:
         List of article dictionaries with URLs and metadata
@@ -155,7 +157,7 @@ def search_mediacloud_by_query(
                 if articles_index and is_article_retrieved(story_id, articles_index):
                     existing_articles += 1
                     filename = f"{story_id}.json"
-                    filepath = RAW_ARTICLES_DIR / filename
+                    filepath = (raw_articles_dir or RAW_ARTICLES_DIR) / filename
 
                     if filepath.exists():
                         try:
@@ -370,7 +372,7 @@ def main():
         logger.error(f"Invalid date format: {e}. Use YYYY-MM-DD format.")
         return
 
-    articles = search_mediacloud_by_query(args.query, start_date, end_date, args.limit, articles_index)
+    articles = search_mediacloud_by_query(args.query, start_date, end_date, args.limit, articles_index, args.raw_dir)
 
     if articles:
         if not args.no_save_json:
