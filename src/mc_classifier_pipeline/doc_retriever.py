@@ -319,6 +319,8 @@ def parse_arguments():
             Examples:
             # Search by query and save articles
             python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output data/search_results.csv
+            python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2025-06-01 --end-date 2025-06-30 --label-studio-json data/labelstudio_tasks.json
+
         """,
     )
     parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
@@ -349,7 +351,7 @@ def parse_arguments():
 
     # json formatted for label studio
     parser.add_argument(
-        "--output-tasks-for-label-studio", type=Path, help="Optional: write Label Studio JSON list of {data:{…}} tasks"
+        "--label-studio-json", type=Path, help="Optional: write Label Studio JSON list of {data:{…}} tasks", default=None
     )
 
     return parser.parse_args()
@@ -408,10 +410,13 @@ def main():
                     if article.get(key):
                         data[key] = article[key]
                 tasks.append({"data": data})
+            if not tasks:
+                logger.warning("No valid tasks to write, all articles were empty or invalid.")
+            else:
+                with open(args.label_studio_json, "w", encoding="utf-8") as f:
+                    json.dump(tasks, f, ensure_ascii=False, indent=2)
+                logger.info(f"Label Studio task file saved to {args.label_studio_json}")
 
-            with open(args.output_tasks_for_label_studio, "w", encoding="utf-8") as f:
-                json.dump(tasks, f, ensure_ascii=False, indent=2)
-            logger.info(f"Label Studio task file saved to {args.output_tasks_for_label_studio}")
 
         analyze_search_results(articles)
     else:
