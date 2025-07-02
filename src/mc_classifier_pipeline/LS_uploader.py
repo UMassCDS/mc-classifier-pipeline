@@ -26,8 +26,7 @@ def upload_tasks(task_file: Path):
     Args:
         task_file: Path to the formatted Label Studio tasks JSON file
     """
-    url = f"{LABEL_STUDIO_HOST.rstrip('/')}" \
-          f"/api/projects/{PROJECT_ID}/import"
+    url = f"{LABEL_STUDIO_HOST.rstrip('/')}/api/projects/{PROJECT_ID}/import"
     headers = {"Authorization": f"Token {LABEL_STUDIO_TOKEN}"}
 
     with open(task_file, "rb") as f:
@@ -37,9 +36,7 @@ def upload_tasks(task_file: Path):
     if response.ok:
         print(f"Successfully uploaded '{task_file.name}' to project {PROJECT_ID}.")
     else:
-        sys.stderr.write(
-            f"Upload failed ({response.status_code}): {response.text}\n"
-        )
+        sys.stderr.write(f"Upload failed ({response.status_code}): {response.text}\n")
         sys.exit(1)
 
 
@@ -52,7 +49,7 @@ def parse_args():
         type=Path,
         nargs="?",
         default=Path("data/labelstudio_tasks.json"),
-        help="Path to the Label Studio tasks JSON file (default: data/labelstudio_tasks.json)"
+        help="Path to the Label Studio tasks JSON file (default: data/labelstudio_tasks.json)",
     )
     return parser.parse_args()
 
