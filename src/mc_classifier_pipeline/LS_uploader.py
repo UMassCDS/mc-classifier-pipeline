@@ -7,7 +7,6 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-# Load environment variables from .env
 load_dotenv()
 
 LABEL_STUDIO_HOST = os.getenv("LABEL_STUDIO_HOST")
@@ -26,7 +25,7 @@ def upload_tasks(task_file: Path):
     Uploads a JSON task file to Label Studio via API.
 
     Args:
-        task_file: Path to the Label Studio–formatted tasks JSON file
+        task_file: Path to the formatted Label Studio tasks JSON file
     """
     url = f"{LABEL_STUDIO_HOST.rstrip('/')}" \
           f"/api/projects/{PROJECT_ID}/import"
@@ -37,17 +36,17 @@ def upload_tasks(task_file: Path):
         response = requests.post(url, headers=headers, files=files)
 
     if response.ok:
-        print(f"✔ Successfully uploaded '{task_file.name}' to project {PROJECT_ID}.")
+        print(f"Successfully uploaded '{task_file.name}' to project {PROJECT_ID}.")
     else:
         sys.stderr.write(
-            f"❌ Upload failed ({response.status_code}): {response.text}\n"
+            f"Upload failed ({response.status_code}): {response.text}\n"
         )
         sys.exit(1)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Upload Label Studio–formatted tasks JSON to a specified Label Studio project via API."
+        description="Upload formatted Label Studio tasks JSON to a specified Label Studio project via API."
     )
     parser.add_argument(
         "task_file",
