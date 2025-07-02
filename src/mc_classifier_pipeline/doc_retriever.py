@@ -313,6 +313,7 @@ def parse_arguments():
             Examples:
             # Search by query and save articles
             python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output data/search_results.csv
+            # Search by query and save articles in Label Studio JSON format
             python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2025-06-01 --end-date 2025-06-30 --label-studio-json data/labelstudio_tasks.json
 
         """,
