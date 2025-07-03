@@ -12,12 +12,14 @@ load_dotenv()
 LABEL_STUDIO_HOST = os.getenv("LABEL_STUDIO_HOST")
 LABEL_STUDIO_TOKEN = os.getenv("LABEL_STUDIO_TOKEN")
 PROJECT_ID = os.getenv("LABEL_STUDIO_PROJECT_ID")
-
+print("LABEL_STUDIO_PROJECT_ID =", os.getenv("LABEL_STUDIO_PROJECT_ID"))
+print("LABEL_STUDIO_HOST =", os.getenv("LABEL_STUDIO_HOST"))
+print("LABEL_STUDIO_TOKEN =", os.getenv("LABEL_STUDIO_TOKEN"))
 # Configure logging
 utils.configure_logging()
 logger = logging.getLogger(__name__)
 
-missing_vars = [k for k in ["LABEL_STUDIO_HOST", "LABEL_STUDIO_TOKEN", "LABEL_STUDIO_PROJECT_ID"] if not globals().get(k)]
+missing_vars = [k for k in ["LABEL_STUDIO_HOST", "LABEL_STUDIO_TOKEN", "PROJECT_ID"] if not globals().get(k)]
 if missing_vars:
     logger.error(f"Missing environment variables: {', '.join(missing_vars)}. Please set them in your .env file.")
     raise SystemExit(1)
@@ -57,10 +59,9 @@ def parse_args():
         epilog="""
             Examples:
             # Upload the default tasks file
-            python src/mc_classifier_pipeline/LS_uploader.py
+            python src/mc_classifier_pipeline/label_studio_uploader.py
             # Upload a custom tasks file
-            python src/mc_classifier_pipeline/LS_uploader.py data/custom_tasks.json
-
+            python src/mc_classifier_pipeline/label_studio_uploader.py data/custom_tasks.json
         """,
     )
 
