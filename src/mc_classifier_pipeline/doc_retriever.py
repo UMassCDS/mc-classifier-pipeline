@@ -352,7 +352,10 @@ def parse_arguments():
 
     # json formatted for label studio
     parser.add_argument(
-        "--label-studio-json", type=Path, help="Optional: write Label Studio JSON list of {data:{…}} tasks", default=None
+        "--label-studio-json",
+        type=Path,
+        help="Optional: write Label Studio JSON list of {data:{…}} tasks",
+        default=None,
     )
 
     return parser.parse_args()
@@ -417,7 +420,6 @@ def main():
                 with open(args.label_studio_json, "w", encoding="utf-8") as f:
                     json.dump(tasks, f, ensure_ascii=False, indent=2)
                 logger.info(f"Label Studio task file saved to {args.label_studio_json}")
-
 
         analyze_search_results(articles)
     else:
