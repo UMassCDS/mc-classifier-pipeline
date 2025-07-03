@@ -3,3 +3,4 @@ failed_urls.txt
 articles_index.json
 search_results.csv
 *.txt
+labelstudio_tasks.json
