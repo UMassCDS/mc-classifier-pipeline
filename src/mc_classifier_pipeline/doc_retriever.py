@@ -393,7 +393,7 @@ def main():
         logger.info(f"Search results saved to {args.output}")
 
         # if requested, then write json in label studio format
-        if args.output_tasks_for_label_studio:
+        if args.label_studio_json:
             tasks = []
             for article in articles:
                 text = article.get("text", "").strip()
