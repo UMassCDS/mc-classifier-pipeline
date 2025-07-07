@@ -13,11 +13,14 @@ RUN apt-get update -qq \
 
 WORKDIR /app
 
-# copy and cache only the dependency list first 
-COPY requirements.txt .
+# copy only the dependency list first 
+COPY pyproject.toml ./
 
+COPY src ./src
+
+#Build wheels for our package + all its deps
 RUN python -m pip install --upgrade pip wheel && \
-    pip wheel --wheel-dir /tmp/wheels -r requirements.txt
+    pip wheel --wheel-dir /tmp/wheels .
 
 
 
@@ -37,7 +40,7 @@ RUN python -m pip install --upgrade pip && \
     pip install /tmp/wheels/* && \
     rm -rf /tmp/wheels                 # reclaim layer space
 
-# copy just the source code needed at runtime
+# copy source code again for live reload in dev containers
 COPY src ./src    
 
 # default CLI entry 

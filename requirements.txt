@@ -1,4 +1,0 @@
-mediacloud==4.4.0
-pandas==2.3.0
-python-dotenv==1.1.1
-tqdm==4.67.1
