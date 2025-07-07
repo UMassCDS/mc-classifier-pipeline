@@ -4,7 +4,8 @@ services:
   mc_pipeline:
     build:
       context: .
-      dockerfile: Dockerfile            
+      dockerfile: Dockerfile
+    image: mc_pipeline:latest            
     container_name: mc_pipeline
 
     env_file:
