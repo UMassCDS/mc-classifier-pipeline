@@ -38,11 +38,19 @@ test = ["pytest"]
 # Dependencies that are useful only to developers, like an autoformatter and
 # support for visualizations in jupyter notebooks go here
 dev = [
-    "ruff",
+    "bs4",
+    "dotenv",
     "jupyter",
+    "lxml_html_clean",
     "matplotlib",
+    "mediacloud",
+    "newspaper3k",
+    "nltk",
+    "requests",
+    "ruff",
     "seaborn",
     "sphinx",
+    "textblob"
 ]
 
 # If your project contains scripts you'd like to be available command line, you can define them here.
