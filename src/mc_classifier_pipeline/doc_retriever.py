@@ -46,7 +46,6 @@ except Exception as e:
 # Helper Functions
 
 
-
 def load_articles_index(index_file: Path) -> dict:
     """
     Load the persistent index of retrieved articles.
@@ -266,7 +265,6 @@ def save_articles_from_query(
     logger.info(f"Saving complete. {new_articles} new articles saved, {len(failed_urls)} articles failed.")
 
 
-
 def analyze_search_results(articles: list):
     """
     Calculates and logs summary statistics for the retrieved articles.
@@ -398,7 +396,6 @@ def main():
         logger.warning("No new articles found for the query.")
 
     logger.info("Pipeline complete.")
-
 
 
 if __name__ == "__main__":
