@@ -146,18 +146,17 @@ def search_mediacloud_by_query(
             stories = results[0]
             logger.info(f"Found {len(stories)} stories")
 
-            for story in tqdm(stories[:limit], desc=f"Processing stories (max {limit})"):
+            # Iterate through all stories, but only collect up to 'limit' new articles
+            for story in tqdm(stories, desc=f"Processing stories (max {limit})"):
+                if new_articles >= limit:
+                    break
                 story_id = story["id"]
-                article_data = SEARCH_API.story(story_id)
-                url = article_data.get("url", "")
 
-                if not url:
-                    continue
-
+                # Check if article is already retrieved before making API call
                 if articles_index and is_article_retrieved(story_id, articles_index):
                     existing_articles += 1
                     filename = f"{story_id}.json"
-                    filepath = (raw_articles_dir or RAW_ARTICLES_DIR) / filename
+                    filepath = Path(raw_articles_dir or RAW_ARTICLES_DIR) / filename
 
                     if filepath.exists():
                         try:
@@ -166,6 +165,13 @@ def search_mediacloud_by_query(
                                 articles.append(existing_article)
                         except Exception as e:
                             logger.error(f"Error loading existing article {story_id}: {e}")
+                    continue
+
+                # Only fetch article data if not already retrieved
+                article_data = SEARCH_API.story(story_id)
+                url = article_data.get("url", "")
+
+                if not url:
                     continue
 
                 new_articles += 1
@@ -436,6 +442,7 @@ def main():
 
         analyze_search_results(articles)
     else:
+        logger.warning("No new articles found for the query.")
         logger.warning("No new articles found for the query.")
 
     logger.info("Pipeline complete.")
