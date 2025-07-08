@@ -35,8 +35,6 @@ def save_upload_index(index: dict, index_file: Path):
         logger.error("Error saving upload index: %s", e)
 
 
-
-
 def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_studio_token: str):
     """
     Upload a list of Label Studio tasks (already filtered) to the specified project.
@@ -100,7 +98,7 @@ def parse_args():
         type=Path,
         default=UPLOAD_INDEX_FILE,
         help="Path to JSON index that tracks which story_ids have already been "
-             "uploaded per project (default: data/uploaded_tasks_index.json)",
+        "uploaded per project (default: data/uploaded_tasks_index.json)",
     )
     parser.add_argument(
         "--force-upload",
@@ -108,6 +106,7 @@ def parse_args():
         help="Ignore the index and re-upload all tasks in the file",
     )
     return parser.parse_args()
+
 
 def main():
     args = parse_args()
@@ -120,8 +119,10 @@ def main():
         missing_vars.append("LABEL_STUDIO_TOKEN")
 
     if missing_vars:
-        raise ValueError(f"Missing environment variables: {', '.join(missing_vars)}. Please set them in your .env file.")
-    
+        raise ValueError(
+            f"Missing environment variables: {', '.join(missing_vars)}. Please set them in your .env file."
+        )
+
     if not args.task_file.exists():
         raise FileNotFoundError(f"Task file '{args.task_file}' not found.")
 

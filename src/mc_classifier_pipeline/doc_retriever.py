@@ -328,7 +328,6 @@ def parse_arguments():
 
     parser.add_argument("--output", type=Path, help="Optional: Output CSV file path")
 
-
     parser.add_argument(
         "--raw-dir", type=Path, default=RAW_ARTICLES_DIR, help="Directory to store raw article JSON files"
     )
@@ -380,7 +379,6 @@ def main():
         )
         args.output_tasks_for_label_studio = default_label_studio_path
 
-
     logger.info("Starting Media Cloud query search and article processing pipeline...")
 
     args.raw_dir.mkdir(parents=True, exist_ok=True)
@@ -428,10 +426,7 @@ def main():
                 for key in ("title", "url", "language", "publish_date"):
                     if article.get(key):
                         data[key] = article[key]
-                tasks.append({
-                    "data": data,
-                    "external_id": f"mc_story_{story_id}"
-                })
+                tasks.append({"data": data, "external_id": f"mc_story_{story_id}"})
 
             if not tasks:
                 logger.warning("No valid tasks to write, all articles were empty or invalid.")
