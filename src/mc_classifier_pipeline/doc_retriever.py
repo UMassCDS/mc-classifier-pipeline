@@ -326,7 +326,8 @@ def parse_arguments():
     )
     parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
 
-    parser.add_argument("--output", type=Path, default=Path("data/search_results.csv"), help="Output CSV file path")
+    parser.add_argument("--output", type=Path, help="Optional: Output CSV file path")
+
 
     parser.add_argument(
         "--raw-dir", type=Path, default=RAW_ARTICLES_DIR, help="Directory to store raw article JSON files"
@@ -370,12 +371,25 @@ def main():
     """
     args = parse_arguments()
 
+    # Default to output Label Studio Json if not specified
+    default_label_studio_path = Path("data/labelstudio_tasks.json")
+    if not args.output and not args.label_studio_json:
+        logger.warning(
+            f"No output format specified (--output or --label-studio-json). "
+            f"Defaulting to Label Studio JSON at {default_label_studio_path}"
+        )
+        args.label_studio_json = default_label_studio_path
+
+
     logger.info("Starting Media Cloud query search and article processing pipeline...")
 
     args.raw_dir.mkdir(parents=True, exist_ok=True)
     args.failed_log.parent.mkdir(parents=True, exist_ok=True)
     args.index_file.parent.mkdir(parents=True, exist_ok=True)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.label_studio_json:
+        args.label_studio_json.parent.mkdir(parents=True, exist_ok=True)
 
     articles_index = {}
     if not args.force_reprocess:
@@ -395,11 +409,11 @@ def main():
         if not args.no_save_json:
             save_articles_from_query(articles, args.raw_dir, args.failed_log, articles_index)
             save_articles_index(articles_index, args.index_file)
-
-        logger.info("Creating output CSV...")
-        df = pd.DataFrame(articles)
-        df.to_csv(args.output, index=False)
-        logger.info(f"Search results saved to {args.output}")
+        if args.output:
+            logger.info("Creating output CSV...")
+            df = pd.DataFrame(articles)
+            df.to_csv(args.output, index=False)
+            logger.info(f"Search results saved to {args.output}")
 
         # if requested, then write json in label studio format
         if args.label_studio_json:
