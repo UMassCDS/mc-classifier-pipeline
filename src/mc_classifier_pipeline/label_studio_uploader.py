@@ -57,7 +57,6 @@ def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_stu
     try:
         response = requests.post(url, headers=headers, files=files)
     except requests.RequestException as e:
-        logger.error("Request failed: %s", e)
         raise e
 
     if response.ok:
@@ -121,12 +120,10 @@ def main():
         missing_vars.append("LABEL_STUDIO_TOKEN")
 
     if missing_vars:
-        logger.error(f"Missing environment variables: {', '.join(missing_vars)}. Please set them in your .env file.")
-        raise SystemExit(1)
+        raise ValueError(f"Missing environment variables: {', '.join(missing_vars)}. Please set them in your .env file.")
     
     if not args.task_file.exists():
-        logger.error("Task file '%s' not found.", args.task_file)
-        raise SystemExit(1)
+        raise FileNotFoundError(f"Task file '{args.task_file}' not found.")
 
     args.upload_index_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -135,7 +132,7 @@ def main():
             all_tasks = json.load(f)
     except json.JSONDecodeError as e:
         logger.error("Task file is not valid JSON: %s", e)
-        raise SystemExit(1)
+        raise
 
     logger.info("Task file contains %d tasks.", len(all_tasks))
 
