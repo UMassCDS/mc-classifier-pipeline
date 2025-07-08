@@ -4,3 +4,4 @@ articles_index.json
 search_results.csv
 *.txt
 labelstudio_tasks.json
+uploaded_tasks_index.json

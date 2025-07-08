@@ -45,7 +45,6 @@ To use the document retriever script, you must set the `MC_API_KEY` environment 
 MC_API_KEY="YOUR_MEDIA_CLOUD_API_KEY_HERE"
 LABEL_STUDIO_HOST="YOUR_LABEL_STUDIO_HOST_HERE"
 LABEL_STUDIO_TOKEN="YOUR_LABEL_STUDIO_TOKEN_HERE"
-LABEL_STUDIO_PROJECT_ID="YOUR_LABEL_STUDIO_PROJECT_ID_HERE"
 ```
 
 The script will automatically load this variable.
