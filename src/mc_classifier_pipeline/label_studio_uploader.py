@@ -7,14 +7,14 @@ from io import BytesIO
 
 import requests
 from dotenv import load_dotenv
+from label_studio_sdk.client import LabelStudio
+
 from mc_classifier_pipeline.utils import configure_logging
 
 load_dotenv()
 # Configure logging
 configure_logging()
 logger = logging.getLogger(__name__)
-
-UPLOAD_INDEX_FILE = Path("data/uploaded_tasks_index.json")
 
 
 def load_upload_index(index_file: Path) -> dict:
@@ -94,13 +94,6 @@ def parse_args():
         help="The project id for the Label Studio project where tasks will be added",
     )
     parser.add_argument(
-        "--upload-index-file",
-        type=Path,
-        default=UPLOAD_INDEX_FILE,
-        help="Path to JSON index that tracks which story_ids have already been "
-        "uploaded per project (default: data/uploaded_tasks_index.json)",
-    )
-    parser.add_argument(
         "--force-upload",
         action="store_true",
         help="Ignore the index and re-upload all tasks in the file",
@@ -123,10 +116,10 @@ def main():
             f"Missing environment variables: {', '.join(missing_vars)}. Please set them in your .env file."
         )
 
+    ls_client = LabelStudio(base_url=label_studio_host, api_key=label_studio_token)
+
     if not args.task_file.exists():
         raise FileNotFoundError(f"Task file '{args.task_file}' not found.")
-
-    args.upload_index_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         with open(args.task_file, encoding="utf-8") as f:
@@ -137,37 +130,25 @@ def main():
 
     logger.info("Task file contains %d tasks.", len(all_tasks))
 
-    upload_index = load_upload_index(args.upload_index_file)
-    project_key = str(args.project_id)
-    project_record = upload_index.get(project_key, {})
+    project_tasks = ls_client.tasks.list(project=args.project_id, include="id,data")
 
-    if args.force_upload:
-        tasks_to_upload = all_tasks
-    else:
-        tasks_to_upload = []
-        for t in all_tasks:
-            sid = t.get("data", {}).get("story_id")
-            if sid is None:
-                logger.warning("Task missing story_id – uploading anyway.")
-                tasks_to_upload.append(t)
-                continue
-            if str(sid) in project_record:
-                continue
+    existing_story_ids = set([t.data.get("story_id", "") for t in project_tasks.items])
+
+    tasks_to_upload = []
+    for t in all_tasks:
+        sid = t.get("data", {}).get("story_id")
+        if sid is None:
+            logger.warning("Task missing story_id – uploading anyway.")
+            tasks_to_upload.append(t)
+            continue
+        if sid not in existing_story_ids:
             tasks_to_upload.append(t)
 
-        if not tasks_to_upload:
-            logger.info("All tasks already uploaded to project %s; nothing to do.", args.project_id)
-            return
+    if not tasks_to_upload:
+        logger.info("All tasks already uploaded to project %s; nothing to do.", args.project_id)
+        return
 
     upload_tasks(tasks_to_upload, args.project_id, label_studio_host, label_studio_token)
-
-    for t in tasks_to_upload:
-        sid = t.get("data", {}).get("story_id")
-        if sid is not None:
-            project_record[str(sid)] = True
-    upload_index[project_key] = project_record
-    save_upload_index(upload_index, args.upload_index_file)
-    logger.info("Upload index updated (%s).", args.upload_index_file)
 
 
 if __name__ == "__main__":
