@@ -17,24 +17,6 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 
-def load_upload_index(index_file: Path) -> dict:
-    if index_file.exists():
-        try:
-            with open(index_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error("Error loading upload index: %s", e)
-    return {}
-
-
-def save_upload_index(index: dict, index_file: Path):
-    try:
-        with open(index_file, "w", encoding="utf-8") as f:
-            json.dump(index, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logger.error("Error saving upload index: %s", e)
-
-
 def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_studio_token: str):
     """
     Upload a list of Label Studio tasks (already filtered) to the specified project.
@@ -92,11 +74,6 @@ def parse_args():
         type=int,
         required=True,
         help="The project id for the Label Studio project where tasks will be added",
-    )
-    parser.add_argument(
-        "--force-upload",
-        action="store_true",
-        help="Ignore the index and re-upload all tasks in the file",
     )
     return parser.parse_args()
 
