@@ -1,26 +1,27 @@
 """
 End-to-end pipeline:
-  1. Query documents → JSON tasks
+  1. Query documents -> JSON tasks
   2. Push those tasks to a chosen Label Studio project
 Usage example:
-  python run_pipeline.py --query "election" --start 2025-06-01 --end 2025-06-30 --project_id 2
+  python -m mc_classifier_pipeline.run_pipeline.py --query "election" --start 2025-06-01 --end 2025-06-30 --project_id 2
 """
+
 from __future__ import annotations
 
 import argparse
 import logging
 
-from .utils import configure_logging
-from . import doc_retriever as dr
-from . import label_studio_uploader as lsu
+from mc_classifier_pipeline.utils import configure_logging
+import mc_classifier_pipeline.doc_retriever as dr
+import mc_classifier_pipeline.label_studio_uploader as lsu
 
 configure_logging()
 logger = logging.getLogger(__name__)
-    
-    
+
+
 def parse_cli():
     parser = argparse.ArgumentParser(
-        description="End-to-end MediaCloud ➜ Label Studio pipeline",
+        description="End-to-end MediaCloud -> Label Studio pipeline",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         parents=[
             dr.build_arg_parser(add_help=False),
@@ -30,7 +31,7 @@ def parse_cli():
     logger.info("Parsed command line arguments...")
     return parser.parse_args()
 
-    
+
 def main() -> None:  # entry‑point in pyproject.toml
     args = parse_cli()
 
@@ -43,5 +44,5 @@ def main() -> None:  # entry‑point in pyproject.toml
     lsu.main(args)
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     main()
