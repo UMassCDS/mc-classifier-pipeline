@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
-from pathlib import Path
 
 from .utils import configure_logging
 from . import doc_retriever as dr
