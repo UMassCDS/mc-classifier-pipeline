@@ -20,9 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 def parse_cli():
+    # Create the main argument parser for the pipeline
     parser = argparse.ArgumentParser(
         description="End-to-end MediaCloud -> Label Studio pipeline",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        # Use argument parsers from doc_retriever and label_studio_uploader as parents
         parents=[
             dr.build_arg_parser(add_help=False),
             lsu.build_uploader_parser(add_help=False),
