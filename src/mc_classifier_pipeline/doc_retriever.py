@@ -319,11 +319,14 @@ def parse_arguments():
             Examples:
             # Search by query and save articles
             python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output data/search_results.csv
+            # Search by query and save articles in Label Studio JSON format
+            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output-tasks-for-label-studio data/labelstudio_tasks.json
+
         """,
     )
     parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
 
-    parser.add_argument("--output", type=Path, default=Path("data/search_results.csv"), help="Output CSV file path")
+    parser.add_argument("--output", type=Path, help="Optional: Output CSV file path")
 
     parser.add_argument(
         "--raw-dir", type=Path, default=RAW_ARTICLES_DIR, help="Directory to store raw article JSON files"
@@ -347,6 +350,14 @@ def parse_arguments():
 
     parser.add_argument("--end-date", required=True, type=str, help="End date for query search (YYYY-MM-DD format)")
 
+    # json formatted for label studio
+    parser.add_argument(
+        "--output-tasks-for-label-studio",
+        type=Path,
+        help="Optional: write Label Studio JSON list of {data:{…}} tasks",
+        default=None,
+    )
+
     return parser.parse_args()
 
 
@@ -359,12 +370,24 @@ def main():
     """
     args = parse_arguments()
 
+    # Default to output Label Studio Json if not specified
+    default_label_studio_path = Path("data/labelstudio_tasks.json")
+    if not args.output and not args.output_tasks_for_label_studio:
+        logger.warning(
+            f"No output format specified (--output or --output-tasks-for-label-studio). "
+            f"Defaulting to Label Studio JSON at {default_label_studio_path}"
+        )
+        args.output_tasks_for_label_studio = default_label_studio_path
+
     logger.info("Starting Media Cloud query search and article processing pipeline...")
 
     args.raw_dir.mkdir(parents=True, exist_ok=True)
     args.failed_log.parent.mkdir(parents=True, exist_ok=True)
     args.index_file.parent.mkdir(parents=True, exist_ok=True)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.output_tasks_for_label_studio:
+        args.output_tasks_for_label_studio.parent.mkdir(parents=True, exist_ok=True)
 
     articles_index = {}
     if not args.force_reprocess:
@@ -384,11 +407,33 @@ def main():
         if not args.no_save_json:
             save_articles_from_query(articles, args.raw_dir, args.failed_log, articles_index)
             save_articles_index(articles_index, args.index_file)
+        if args.output:
+            logger.info("Creating output CSV...")
+            df = pd.DataFrame(articles)
+            df.to_csv(args.output, index=False)
+            logger.info(f"Search results saved to {args.output}")
 
-        logger.info("Creating output CSV...")
-        df = pd.DataFrame(articles)
-        df.to_csv(args.output, index=False)
-        logger.info(f"Search results saved to {args.output}")
+        # if requested, then write json in label studio format
+        if args.output_tasks_for_label_studio:
+            tasks = []
+            for article in articles:
+                text = article.get("text", "").strip()
+                story_id = article["story_id"]
+                if not text:
+                    continue
+                data = {"text": text, "story_id": story_id}
+                # optionally include metadata fields(Arav was storing these)
+                for key in ("title", "url", "language", "publish_date"):
+                    if article.get(key):
+                        data[key] = article[key]
+                tasks.append({"data": data, "external_id": f"mc_story_{story_id}"})
+
+            if not tasks:
+                logger.warning("No valid tasks to write, all articles were empty or invalid.")
+            else:
+                with open(args.output_tasks_for_label_studio, "w", encoding="utf-8") as f:
+                    json.dump(tasks, f, ensure_ascii=False, indent=2)
+                logger.info(f"Label Studio task file saved to {args.output_tasks_for_label_studio}")
 
         analyze_search_results(articles)
     else:

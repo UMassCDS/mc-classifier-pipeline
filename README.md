@@ -39,10 +39,12 @@ Use these steps for setting up a development environment to install and work wit
 
 ### Environment Variables
 
-To use the document retriever script, you must set the `MC_API_KEY` environment variable. The script uses the `python-dotenv` library, so you can create a `.env` file in the project's root directory:
+To use the document retriever script, you must set the `MC_API_KEY` environment variable. To use the label studio uploader script, you must set `LABEL_STUDIO_HOST` and `LABEL_STUDIO_TOKEN` environment variables. Both scripts uses the `python-dotenv` library, so you can create a `.env` file in the project's root directory:
 
 ```
 MC_API_KEY="YOUR_MEDIA_CLOUD_API_KEY_HERE"
+LABEL_STUDIO_HOST="YOUR_LABEL_STUDIO_HOST_HERE"
+LABEL_STUDIO_TOKEN="YOUR_LABEL_STUDIO_TOKEN_HERE"
 ```
 
 The script will automatically load this variable.
