@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 import json
 from io import BytesIO
+from typing import Optional
 
 import requests
 from dotenv import load_dotenv
@@ -84,7 +85,7 @@ def parse_args():
     return build_uploader_parser().parse_args()
 
 
-def main(args):
+def main(args: Optional[argparse.Namespace] = None):
     if args is None:
         args = parse_args()
     label_studio_host = os.getenv("LABEL_STUDIO_HOST")

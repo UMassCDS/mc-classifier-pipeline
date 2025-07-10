@@ -373,7 +373,7 @@ def parse_arguments():
     return build_arg_parser().parse_args()
 
 
-def main(args):
+def main(args: Optional[argparse.Namespace] = None):
     """
     Main function to run the Media Cloud query search and article processing pipeline.
     This function parses command-line arguments, loads a persistent index of articles,
