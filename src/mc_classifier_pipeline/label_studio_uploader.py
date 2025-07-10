@@ -18,11 +18,15 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 
-def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_studio_token: str):
+def upload_tasks(
+    tasks: list, project_id: int, label_studio_host: str, label_studio_token: str
+):
     """
     Upload a list of Label Studio tasks (already filtered) to the specified project.
     """
-    logger.info("Uploading %d tasks to Label Studio project %s...", len(tasks), project_id)
+    logger.info(
+        "Uploading %d tasks to Label Studio project %s...", len(tasks), project_id
+    )
     if not tasks:
         logger.info("No tasks to upload after filtering; skipping API call.")
         return
@@ -44,7 +48,9 @@ def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_stu
         logger.info("Successfully uploaded %d tasks.", len(tasks))
     else:
         logger.error("Upload failed (%s): %s", response.status_code, response.text)
-        raise requests.RequestException(f"Upload failed with response {response.status_code}: {response.text}")
+        raise requests.RequestException(
+            f"Upload failed with response {response.status_code}: {response.text}"
+        )
 
 
 def build_uploader_parser(add_help=True):
@@ -132,10 +138,14 @@ def main(args: Optional[argparse.Namespace] = None):
             tasks_to_upload.append(t)
 
     if not tasks_to_upload:
-        logger.info("All tasks already uploaded to project %s; nothing to do.", args.project_id)
+        logger.info(
+            "All tasks already uploaded to project %s; nothing to do.", args.project_id
+        )
         return
 
-    upload_tasks(tasks_to_upload, args.project_id, label_studio_host, label_studio_token)
+    upload_tasks(
+        tasks_to_upload, args.project_id, label_studio_host, label_studio_token
+    )
 
 
 if __name__ == "__main__":
