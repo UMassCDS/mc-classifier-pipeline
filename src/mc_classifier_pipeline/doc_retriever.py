@@ -309,6 +309,7 @@ def analyze_search_results(articles: list):
     for language, count in language_counts.items():
         logger.info(f"  {language}: {count}")
 
+
 def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
     """
     Build the argument parser for the Label Studio uploader.
@@ -367,6 +368,7 @@ def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
     )
 
     return parser
+
 
 def parse_arguments():
     """Parse command line arguments."""

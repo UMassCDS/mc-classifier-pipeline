@@ -46,6 +46,7 @@ def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_stu
         logger.error("Upload failed (%s): %s", response.status_code, response.text)
         raise requests.RequestException(f"Upload failed with response {response.status_code}: {response.text}")
 
+
 def build_uploader_parser(add_help=True):
     """
     Build the argument parser for the Label Studio uploader.
@@ -79,6 +80,7 @@ def build_uploader_parser(add_help=True):
         help="The project id for the Label Studio project where tasks will be added",
     )
     return parser
+
 
 def parse_args():
     """Parse command line arguments."""
