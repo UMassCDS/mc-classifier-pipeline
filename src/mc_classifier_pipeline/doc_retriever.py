@@ -309,9 +309,16 @@ def analyze_search_results(articles: list):
     for language, count in language_counts.items():
         logger.info(f"  {language}: {count}")
 
+def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
+    """
+    Build the argument parser for the Label Studio uploader.
 
-def parse_arguments():
-    """Parse command line arguments."""
+    Args:
+        add_help: Whether to add the default help argument
+
+    Returns:
+        Argument parser instance
+    """
     parser = argparse.ArgumentParser(
         description="Media Cloud query search and article processing pipeline with persistent tracking",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -323,6 +330,7 @@ def parse_arguments():
             python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output-tasks-for-label-studio data/labelstudio_tasks.json
 
         """,
+        add_help=add_help,
     )
     parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
 
@@ -358,17 +366,22 @@ def parse_arguments():
         default=None,
     )
 
-    return parser.parse_args()
+    return parser
+
+def parse_arguments():
+    """Parse command line arguments."""
+    return build_arg_parser().parse_args()
 
 
-def main():
+def main(args):
     """
     Main function to run the Media Cloud query search and article processing pipeline.
     This function parses command-line arguments, loads a persistent index of articles,
     searches Media Cloud for new articles based on a query, saves the results,
     and provides a summary analysis.
     """
-    args = parse_arguments()
+    if args is None:
+        args = parse_arguments()
 
     # Default to output Label Studio Json if not specified
     default_label_studio_path = Path("data/labelstudio_tasks.json")
