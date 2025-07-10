@@ -164,9 +164,7 @@ def search_mediacloud_by_query(
                                 existing_article = json.load(f)
                                 articles.append(existing_article)
                         except Exception as e:
-                            logger.error(
-                                f"Error loading existing article {story_id}: {e}"
-                            )
+                            logger.error(f"Error loading existing article {story_id}: {e}")
                     continue
 
                 # Only fetch article data if not already retrieved
@@ -183,11 +181,7 @@ def search_mediacloud_by_query(
                     "text": article_data.get("text", ""),
                     "source": "mediacloud_query",
                     "retrieved_at": dt.datetime.now().isoformat(),
-                    "status": (
-                        ArticleStatus.SUCCESS
-                        if article_data.get("text")
-                        else ArticleStatus.FAILED_NO_TEXT
-                    ),
+                    "status": (ArticleStatus.SUCCESS if article_data.get("text") else ArticleStatus.FAILED_NO_TEXT),
                     "story_id": story_id,
                     "publish_date": article_data.get("publish_date", ""),
                     "media_id": article_data.get("media_id", ""),
@@ -200,9 +194,7 @@ def search_mediacloud_by_query(
     except Exception as e:
         logger.error(f"Error searching Media Cloud: {e}")
 
-    logger.info(
-        f"Processing complete: {new_articles} new articles, {existing_articles} existing articles"
-    )
+    logger.info(f"Processing complete: {new_articles} new articles, {existing_articles} existing articles")
     return articles
 
 
@@ -273,9 +265,7 @@ def save_articles_from_query(
                 f.write(f"{url}\n")
         logger.info(f"Failed URLs logged to {failed_urls_log}")
 
-    logger.info(
-        f"Saving complete. {new_articles} new articles saved, {len(failed_urls)} articles failed."
-    )
+    logger.info(f"Saving complete. {new_articles} new articles saved, {len(failed_urls)} articles failed.")
 
 
 def analyze_search_results(articles: list):
@@ -309,15 +299,11 @@ def analyze_search_results(articles: list):
     for status, count in status_counts.items():
         logger.info(f"  {status}: {count}")
 
-    text_lengths = [
-        len(article.get("text", "")) for article in articles if article.get("text")
-    ]
+    text_lengths = [len(article.get("text", "")) for article in articles if article.get("text")]
     if text_lengths:
         logger.info("Text length statistics:")
         logger.info(f"  Mean: {sum(text_lengths) / len(text_lengths):.0f} characters")
-        logger.info(
-            f"  Median: {sorted(text_lengths)[len(text_lengths) // 2]:.0f} characters"
-        )
+        logger.info(f"  Median: {sorted(text_lengths)[len(text_lengths) // 2]:.0f} characters")
         logger.info(f"  Min: {min(text_lengths):.0f} characters")
         logger.info(f"  Max: {max(text_lengths):.0f} characters")
 
@@ -350,9 +336,7 @@ def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
         """,
         add_help=add_help,
     )
-    parser.add_argument(
-        "--query", type=str, required=True, help="Search query for Media Cloud API"
-    )
+    parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
 
     parser.add_argument("--output", type=Path, help="Optional: Output CSV file path")
 
@@ -377,9 +361,7 @@ def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
         help="Path to articles index file",
     )
 
-    parser.add_argument(
-        "--no-save-json", action="store_true", help="Skip saving individual JSON files"
-    )
+    parser.add_argument("--no-save-json", action="store_true", help="Skip saving individual JSON files")
 
     parser.add_argument(
         "--force-reprocess",
@@ -465,15 +447,11 @@ def main(args: Optional[argparse.Namespace] = None):
         logger.error(f"Invalid date format: {e}. Use YYYY-MM-DD format.")
         return
 
-    articles = search_mediacloud_by_query(
-        args.query, start_date, end_date, args.limit, articles_index, args.raw_dir
-    )
+    articles = search_mediacloud_by_query(args.query, start_date, end_date, args.limit, articles_index, args.raw_dir)
 
     if articles:
         if not args.no_save_json:
-            save_articles_from_query(
-                articles, args.raw_dir, args.failed_log, articles_index
-            )
+            save_articles_from_query(articles, args.raw_dir, args.failed_log, articles_index)
             save_articles_index(articles_index, args.index_file)
         if args.output:
             logger.info("Creating output CSV...")
@@ -497,17 +475,11 @@ def main(args: Optional[argparse.Namespace] = None):
                 tasks.append({"data": data, "external_id": f"mc_story_{story_id}"})
 
             if not tasks:
-                logger.warning(
-                    "No valid tasks to write, all articles were empty or invalid."
-                )
+                logger.warning("No valid tasks to write, all articles were empty or invalid.")
             else:
-                with open(
-                    args.output_tasks_for_label_studio, "w", encoding="utf-8"
-                ) as f:
+                with open(args.output_tasks_for_label_studio, "w", encoding="utf-8") as f:
                     json.dump(tasks, f, ensure_ascii=False, indent=2)
-                logger.info(
-                    f"Label Studio task file saved to {args.output_tasks_for_label_studio}"
-                )
+                logger.info(f"Label Studio task file saved to {args.output_tasks_for_label_studio}")
 
         analyze_search_results(articles)
     else:
