@@ -45,9 +45,10 @@ def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_stu
         logger.error("Upload failed (%s): %s", response.status_code, response.text)
         raise requests.RequestException(f"Upload failed with response {response.status_code}: {response.text}")
 
-
-def parse_args():
-    """Parse command line arguments."""
+def build_uploader_parser(add_help=True):
+    """
+    Build the argument parser for the Label Studio uploader.
+    """
 
     parser = argparse.ArgumentParser(
         description="Upload formatted Label Studio tasks JSON to a specified Label Studio project via API.",
@@ -59,6 +60,7 @@ def parse_args():
             # Upload a custom tasks file to Label Studio project with id 100
             python src/mc_classifier_pipeline/label_studio_uploader.py data/custom_tasks.json -p 100
         """,
+        add_help=add_help,
     )
 
     parser.add_argument(
@@ -75,11 +77,16 @@ def parse_args():
         required=True,
         help="The project id for the Label Studio project where tasks will be added",
     )
-    return parser.parse_args()
+    return parser
+
+def parse_args():
+    """Parse command line arguments."""
+    return build_uploader_parser().parse_args()
 
 
-def main():
-    args = parse_args()
+def main(args):
+    if args is None:
+        args = parse_args()
     label_studio_host = os.getenv("LABEL_STUDIO_HOST")
     label_studio_token = os.getenv("LABEL_STUDIO_TOKEN")
     missing_vars = []
