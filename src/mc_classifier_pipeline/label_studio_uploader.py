@@ -45,9 +45,15 @@ def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_stu
         logger.error("Upload failed (%s): %s", response.status_code, response.text)
         raise requests.RequestException(f"Upload failed with response {response.status_code}: {response.text}")
 
-def build_uploader_parser(add_help=True):
+def build_uploader_parser(add_help=True) -> argparse.ArgumentParser:
     """
     Build the argument parser for the Label Studio uploader.
+    
+    Args:
+        add_help: Whether to add the default help argument
+
+    Returns:
+        Argument parser instance
     """
 
     parser = argparse.ArgumentParser(
