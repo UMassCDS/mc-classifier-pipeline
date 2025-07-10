@@ -58,6 +58,7 @@ dev = [
 # The value must be of the form "<package_name>:<module_name>.<function>"
 [project.scripts]
 retrieve-mc-docs = "mc_classifier_pipeline.doc_retriever:main"
+mc-pipeline = "mc_classifier_pipeline.run_pipeline:main"
 
 # Add customizations to the Ruff linter as described on https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
