@@ -14,7 +14,7 @@ services:
     volumes:
       - ./data:/app/data                 
 
-    entrypoint: ["python", "-m", "mc_classifier_pipeline.doc_retriever"]
+    entrypoint: ["python", "-m", "mc_classifier_pipeline.run_pipeline"]
     command: ["--help"]        
 
     # ports:
