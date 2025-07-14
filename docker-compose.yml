@@ -10,6 +10,7 @@ services:
       - .env            
 
     volumes:
+      - ./src:/app/src
       - ./data:/app/data                 
 
     entrypoint: ["python", "-m", "mc_classifier_pipeline.run_pipeline"]
