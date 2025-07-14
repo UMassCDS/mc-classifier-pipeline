@@ -395,7 +395,7 @@ def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
         "--label-studio-tasks",
         type=Path,
         default=Path("data/labelstudio_tasks.json"),
-        help="Path to the Label Studio tasks JSON file"
+        help="Path to the Label Studio tasks JSON file",
     )
 
     return parser

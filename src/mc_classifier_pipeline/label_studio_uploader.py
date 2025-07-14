@@ -1,7 +1,6 @@
 import argparse
 import os
 import logging
-from pathlib import Path
 import json
 from io import BytesIO
 from typing import Optional
@@ -64,7 +63,7 @@ def build_uploader_parser(add_help=True):
         """,
         add_help=add_help,
     )
-    
+
     parser.add_argument(
         "--project_id",
         "-p",
