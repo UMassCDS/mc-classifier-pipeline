@@ -59,7 +59,9 @@ def load_articles_index(index_file: Path) -> dict:
     if index_file.exists():
         try:
             with open(index_file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                loaded = json.load(f)
+                # Guarantee string keys
+                return {str(k): v for k, v in loaded.items()}
         except Exception as e:
             logger.error(f"Error loading articles index: {e}")
             return {}
@@ -92,6 +94,7 @@ def is_article_retrieved(story_id: str, articles_index: dict) -> bool:
     Returns:
         True if article exists and has valid content
     """
+    story_id = str(story_id)
     if story_id not in articles_index:
         return False
 
@@ -109,6 +112,7 @@ def search_mediacloud_by_query(
     limit: int = 100,
     articles_index: Optional[dict] = None,
     raw_articles_dir: Optional[Path] = None,
+    collection_ids: Optional[list[int]] = None,
 ) -> list:
     """
     Search Media Cloud for articles using a query string, avoiding re-retrieval of existing articles.
@@ -140,8 +144,10 @@ def search_mediacloud_by_query(
         default_end = dt.date.today()
         actual_start = start_date if start_date is not None else default_start
         actual_end = end_date if end_date is not None else default_end
-
-        results = SEARCH_API.story_list(query, actual_start, actual_end)
+        if collection_ids:
+            results = SEARCH_API.story_list(query, actual_start, actual_end,collection_ids=collection_ids)
+        else:
+            results = SEARCH_API.story_list(query, actual_start, actual_end)
         if results and len(results[0]) > 0:
             stories = results[0]
             logger.info(f"Found {len(stories)} stories")
@@ -150,22 +156,12 @@ def search_mediacloud_by_query(
             for story in tqdm(stories, desc=f"Processing stories (max {limit})"):
                 if new_articles >= limit:
                     break
-                story_id = story["id"]
+                story_id = str(story["id"])
 
                 # Check if article is already retrieved before making API call
                 if articles_index and is_article_retrieved(story_id, articles_index):
                     existing_articles += 1
-                    filename = f"{story_id}.json"
-                    filepath = Path(raw_articles_dir or RAW_ARTICLES_DIR) / filename
-
-                    if filepath.exists():
-                        try:
-                            with open(filepath, "r", encoding="utf-8") as f:
-                                existing_article = json.load(f)
-                                articles.append(existing_article)
-                        except Exception as e:
-                            logger.error(f"Error loading existing article {story_id}: {e}")
-                    continue
+                    continue  # skip silently; don't add it again to `articles`
 
                 # Only fetch article data if not already retrieved
                 article_data = SEARCH_API.story(story_id)
@@ -220,7 +216,7 @@ def save_articles_from_query(
 
     for article in tqdm(articles, desc="Saving articles"):
         url = article.get("url", "")
-        story_id = article.get("story_id", "")
+        story_id = str(article.get("story_id", ""))
         status = article.get("status", ArticleStatus.UNKNOWN)
 
         if not url or not story_id:
@@ -321,7 +317,8 @@ def parse_arguments():
             python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output data/search_results.csv
             # Search by query and save articles in Label Studio JSON format
             python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output-tasks-for-label-studio data/labelstudio_tasks.json
-
+            # Search by query and save articles from a collection in Label Studio JSON format
+            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --collection-ids 34412234,34412118 --output-tasks-for-label-studio data/labelstudio_tasks.json
         """,
     )
     parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
@@ -350,6 +347,8 @@ def parse_arguments():
 
     parser.add_argument("--end-date", required=True, type=str, help="End date for query search (YYYY-MM-DD format)")
 
+    parser.add_argument("--collection-ids", type=str, help=("Comma-separated list of collection IDs to limit the search to (ID1,ID2,... format)"), default=None)
+
     # json formatted for label studio
     parser.add_argument(
         "--output-tasks-for-label-studio",
@@ -369,7 +368,14 @@ def main():
     and provides a summary analysis.
     """
     args = parse_arguments()
-
+    collection_ids = None
+    if args.collection_ids:
+        try:
+            collection_ids = [int(c.strip()) for c in args.collection_ids.split(",") if c.strip()]
+        except ValueError:
+            logger.error("--collection-ids must be a comma-separated list of integers")
+            return
+    
     # Default to output Label Studio Json if not specified
     default_label_studio_path = Path("data/labelstudio_tasks.json")
     if not args.output and not args.output_tasks_for_label_studio:
@@ -401,7 +407,7 @@ def main():
         logger.error(f"Invalid date format: {e}. Use YYYY-MM-DD format.")
         return
 
-    articles = search_mediacloud_by_query(args.query, start_date, end_date, args.limit, articles_index, args.raw_dir)
+    articles = search_mediacloud_by_query(args.query, start_date, end_date, args.limit, articles_index, args.raw_dir, collection_ids=collection_ids)
 
     if articles:
         if not args.no_save_json:
@@ -418,7 +424,7 @@ def main():
             tasks = []
             for article in articles:
                 text = article.get("text", "").strip()
-                story_id = article["story_id"]
+                story_id = str(article["story_id"])
                 if not text:
                     continue
                 data = {"text": text, "story_id": story_id}
