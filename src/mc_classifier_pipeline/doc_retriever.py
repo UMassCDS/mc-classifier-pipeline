@@ -7,7 +7,7 @@ from collections import Counter
 from enum import StrEnum
 from pathlib import Path
 from typing import Optional
- 
+
 import mediacloud.api
 import pandas as pd
 from dotenv import load_dotenv
@@ -59,9 +59,7 @@ def load_articles_index(index_file: Path) -> dict:
     if index_file.exists():
         try:
             with open(index_file, "r", encoding="utf-8") as f:
-                loaded = json.load(f)
-                # Guarantee string keys
-                return {str(k): v for k, v in loaded.items()}
+                return json.load(f)
         except Exception as e:
             logger.error(f"Error loading articles index: {e}")
             return {}
@@ -94,7 +92,6 @@ def is_article_retrieved(story_id: str, articles_index: dict) -> bool:
     Returns:
         True if article exists and has valid content
     """
-    story_id = str(story_id)
     if story_id not in articles_index:
         return False
 
@@ -156,12 +153,22 @@ def search_mediacloud_by_query(
             for story in tqdm(stories, desc=f"Processing stories (max {limit})"):
                 if new_articles >= limit:
                     break
-                story_id = str(story["id"])
+                story_id = story["id"]
 
                 # Check if article is already retrieved before making API call
                 if articles_index and is_article_retrieved(story_id, articles_index):
                     existing_articles += 1
-                    continue  # skip silently; don't add it again to `articles`
+                    filename = f"{story_id}.json"
+                    filepath = Path(raw_articles_dir or RAW_ARTICLES_DIR) / filename
+
+                    if filepath.exists():
+                        try:
+                            with open(filepath, "r", encoding="utf-8") as f:
+                                existing_article = json.load(f)
+                                articles.append(existing_article)
+                        except Exception as e:
+                            logger.error(f"Error loading existing article {story_id}: {e}")
+                    continue
 
                 # Only fetch article data if not already retrieved
                 article_data = SEARCH_API.story(story_id)
@@ -216,7 +223,7 @@ def save_articles_from_query(
 
     for article in tqdm(articles, desc="Saving articles"):
         url = article.get("url", "")
-        story_id = str(article.get("story_id", ""))
+        story_id = article.get("story_id", "")
         status = article.get("status", ArticleStatus.UNKNOWN)
 
         if not url or not story_id:
@@ -424,7 +431,7 @@ def main():
             tasks = []
             for article in articles:
                 text = article.get("text", "").strip()
-                story_id = str(article["story_id"])
+                story_id = article["story_id"]
                 if not text:
                     continue
                 data = {"text": text, "story_id": story_id}
