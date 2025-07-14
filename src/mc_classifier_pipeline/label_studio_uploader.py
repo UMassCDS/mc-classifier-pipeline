@@ -64,14 +64,7 @@ def build_uploader_parser(add_help=True):
         """,
         add_help=add_help,
     )
-
-    parser.add_argument(
-        "task_file",
-        type=Path,
-        nargs="?",
-        default=Path("data/labelstudio_tasks.json"),
-        help="Path to the Label Studio tasks JSON file (default: data/labelstudio_tasks.json)",
-    )
+    
     parser.add_argument(
         "--project_id",
         "-p",
@@ -105,11 +98,11 @@ def main(args: Optional[argparse.Namespace] = None):
 
     ls_client = LabelStudio(base_url=label_studio_host, api_key=label_studio_token)
 
-    if not args.task_file.exists():
-        raise FileNotFoundError(f"Task file '{args.task_file}' not found.")
+    if not args.label_studio_tasks.exists():
+        raise FileNotFoundError(f"Task file '{args.label_studio_tasks}' not found.")
 
     try:
-        with open(args.task_file, encoding="utf-8") as f:
+        with open(args.label_studio_tasks, encoding="utf-8") as f:
             all_tasks = json.load(f)
     except json.JSONDecodeError as e:
         logger.error("Task file is not valid JSON: %s", e)
