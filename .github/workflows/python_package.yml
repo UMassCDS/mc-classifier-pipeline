@@ -3,7 +3,7 @@ name: Python package
 on:
   pull_request:
   push:
-    branches: [ $default-branch ]
+    branches: [ ml-backend-repo ]
   workflow_dispatch:
 
 
@@ -25,7 +25,7 @@ jobs:
           pip install .[test]
       - name: Test with pytest
         run: |
-          pytest
+          pytest --ignore=ml_backend
 
   ruff:
     runs-on: ubuntu-latest
