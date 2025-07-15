@@ -109,6 +109,7 @@ def search_mediacloud_by_query(
     limit: int = 100,
     articles_index: Optional[dict] = None,
     raw_articles_dir: Optional[Path] = None,
+    collection_ids: Optional[list[int]] = None,
 ) -> list:
     """
     Search Media Cloud for articles using a query string, avoiding re-retrieval of existing articles.
@@ -140,8 +141,11 @@ def search_mediacloud_by_query(
         default_end = dt.date.today()
         actual_start = start_date if start_date is not None else default_start
         actual_end = end_date if end_date is not None else default_end
-
-        results = SEARCH_API.story_list(query, actual_start, actual_end)
+        if collection_ids:
+            logger.info(f"Query restricted to {len(collection_ids)}(s) collections with ids: {collection_ids}")
+            results = SEARCH_API.story_list(query, actual_start, actual_end, collection_ids=collection_ids)
+        else:
+            results = SEARCH_API.story_list(query, actual_start, actual_end)
         if results and len(results[0]) > 0:
             stories = results[0]
             logger.info(f"Found {len(stories)} stories")
@@ -332,7 +336,8 @@ def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
             python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output data/search_results.csv
             # Search by query and save articles in Label Studio JSON format
             python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --label-studio-tasks data/labelstudio_tasks.json
-
+            # Search by query and save articles from a collection in Label Studio JSON format
+            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --collection-ids 34412234 34412118 --label-studio-tasks data/labelstudio_tasks.json
         """,
         add_help=add_help,
     )
@@ -388,6 +393,13 @@ def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
         required=True,
         type=str,
         help="End date for query search (YYYY-MM-DD format)",
+    )
+
+    parser.add_argument(
+        "--collection-ids",
+        nargs="*",
+        type=int,
+        help=("List of collection IDs to limit the search to (ID1 ID2 ... format)"),
     )
 
     # json formatted for label studio
@@ -447,7 +459,9 @@ def main(args: Optional[argparse.Namespace] = None):
         logger.error(f"Invalid date format: {e}. Use YYYY-MM-DD format.")
         return
 
-    articles = search_mediacloud_by_query(args.query, start_date, end_date, args.limit, articles_index, args.raw_dir)
+    articles = search_mediacloud_by_query(
+        args.query, start_date, end_date, args.limit, articles_index, args.raw_dir, collection_ids=args.collection_ids
+    )
 
     if articles:
         if not args.no_save_json:

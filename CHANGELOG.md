@@ -13,3 +13,4 @@ You should also add project tags for each release in Github, see [Managing relea
 - Add `label_studio_uploader` script for uploading data to Label Studio.
 - Refactor parsing arguments in both `doc_retriever` and `label_studio_uploader`
 - Add `run_pipeline` script for connecting document-retrieval and label-studio-upload steps
+- Modify `doc_retriever` script to accept optional collection ID

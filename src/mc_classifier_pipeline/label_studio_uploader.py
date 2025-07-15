@@ -56,7 +56,7 @@ def build_uploader_parser(add_help=True):
         description="Upload formatted Label Studio tasks JSON to a specified Label Studio project via API.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-            Examples:
+            Examples: 
             # Upload the default tasks file to Label Studio project with id 4
             python src/mc_classifier_pipeline/label_studio_uploader.py --project_id 4
             # Upload a custom tasks file to Label Studio project with id 100
