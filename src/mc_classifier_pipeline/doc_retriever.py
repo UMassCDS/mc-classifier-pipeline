@@ -185,7 +185,7 @@ def search_mediacloud_by_query(
                     "text": article_data.get("text", ""),
                     "source": "mediacloud_query",
                     "retrieved_at": dt.datetime.now().isoformat(),
-                    "status": ArticleStatus.SUCCESS if article_data.get("text") else ArticleStatus.FAILED_NO_TEXT,
+                    "status": (ArticleStatus.SUCCESS if article_data.get("text") else ArticleStatus.FAILED_NO_TEXT),
                     "story_id": story_id,
                     "publish_date": article_data.get("publish_date", ""),
                     "media_id": article_data.get("media_id", ""),
@@ -203,7 +203,10 @@ def search_mediacloud_by_query(
 
 
 def save_articles_from_query(
-    articles: list, raw_articles_dir: Path, failed_urls_log: Path, articles_index: Optional[dict] = None
+    articles: list,
+    raw_articles_dir: Path,
+    failed_urls_log: Path,
+    articles_index: Optional[dict] = None,
 ):
     """
     Save articles retrieved from Media Cloud query to JSON files and update index.
@@ -314,8 +317,16 @@ def analyze_search_results(articles: list):
         logger.info(f"  {language}: {count}")
 
 
-def parse_arguments():
-    """Parse command line arguments."""
+def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
+    """
+    Build the argument parser for the Label Studio uploader.
+
+    Args:
+        add_help: Whether to add the default help argument
+
+    Returns:
+        Argument parser instance
+    """
     parser = argparse.ArgumentParser(
         description="Media Cloud query search and article processing pipeline with persistent tracking",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -324,36 +335,65 @@ def parse_arguments():
             # Search by query and save articles
             python src/mc_classifier_pipeline/doc_retriever.py --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output data/search_results.csv
             # Search by query and save articles in Label Studio JSON format
-            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output-tasks-for-label-studio data/labelstudio_tasks.json
+            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --label-studio-tasks data/labelstudio_tasks.json
             # Search by query and save articles from a collection in Label Studio JSON format
-            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --collection-ids 34412234 34412118 --output-tasks-for-label-studio data/labelstudio_tasks.json
+            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --collection-ids 34412234 34412118 --label-studio-tasks data/labelstudio_tasks.json
         """,
+        add_help=add_help,
     )
     parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
 
     parser.add_argument("--output", type=Path, help="Optional: Output CSV file path")
 
     parser.add_argument(
-        "--raw-dir", type=Path, default=RAW_ARTICLES_DIR, help="Directory to store raw article JSON files"
+        "--raw-dir",
+        type=Path,
+        default=RAW_ARTICLES_DIR,
+        help="Directory to store raw article JSON files",
     )
 
-    parser.add_argument("--failed-log", type=Path, default=FAILED_URLS_LOG, help="Path to log failed URLs")
+    parser.add_argument(
+        "--failed-log",
+        type=Path,
+        default=FAILED_URLS_LOG,
+        help="Path to log failed URLs",
+    )
 
-    parser.add_argument("--index-file", type=Path, default=ARTICLES_INDEX_FILE, help="Path to articles index file")
+    parser.add_argument(
+        "--index-file",
+        type=Path,
+        default=ARTICLES_INDEX_FILE,
+        help="Path to articles index file",
+    )
 
     parser.add_argument("--no-save-json", action="store_true", help="Skip saving individual JSON files")
 
     parser.add_argument(
-        "--force-reprocess", action="store_true", help="Force reprocessing of already retrieved articles"
+        "--force-reprocess",
+        action="store_true",
+        help="Force reprocessing of already retrieved articles",
     )
-
-    parser.add_argument("--limit", type=int, default=100, help="Maximum number of results for query search")
 
     parser.add_argument(
-        "--start-date", required=True, type=str, help="Start date for query search (YYYY-MM-DD format)"
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum number of results for query search",
     )
 
-    parser.add_argument("--end-date", required=True, type=str, help="End date for query search (YYYY-MM-DD format)")
+    parser.add_argument(
+        "--start-date",
+        required=True,
+        type=str,
+        help="Start date for query search (YYYY-MM-DD format)",
+    )
+
+    parser.add_argument(
+        "--end-date",
+        required=True,
+        type=str,
+        help="End date for query search (YYYY-MM-DD format)",
+    )
 
     parser.add_argument(
         "--collection-ids",
@@ -364,32 +404,38 @@ def parse_arguments():
 
     # json formatted for label studio
     parser.add_argument(
-        "--output-tasks-for-label-studio",
+        "--label-studio-tasks",
         type=Path,
-        help="Optional: write Label Studio JSON list of {data:{…}} tasks",
-        default=None,
+        default=Path("data/labelstudio_tasks.json"),
+        help="Path to the Label Studio tasks JSON file",
     )
 
-    return parser.parse_args()
+    return parser
 
 
-def main():
+def parse_arguments():
+    """Parse command line arguments."""
+    return build_arg_parser().parse_args()
+
+
+def main(args: Optional[argparse.Namespace] = None):
     """
     Main function to run the Media Cloud query search and article processing pipeline.
     This function parses command-line arguments, loads a persistent index of articles,
     searches Media Cloud for new articles based on a query, saves the results,
     and provides a summary analysis.
     """
-    args = parse_arguments()
+    if args is None:
+        args = parse_arguments()
 
     # Default to output Label Studio Json if not specified
     default_label_studio_path = Path("data/labelstudio_tasks.json")
-    if not args.output and not args.output_tasks_for_label_studio:
+    if not args.output and not args.label_studio_tasks:
         logger.warning(
-            f"No output format specified (--output or --output-tasks-for-label-studio). "
+            f"No output format specified (--output or --label-studio-tasks). "
             f"Defaulting to Label Studio JSON at {default_label_studio_path}"
         )
-        args.output_tasks_for_label_studio = default_label_studio_path
+        args.label_studio_tasks = default_label_studio_path
 
     logger.info("Starting Media Cloud query search and article processing pipeline...")
 
@@ -398,8 +444,8 @@ def main():
     args.index_file.parent.mkdir(parents=True, exist_ok=True)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-    if args.output_tasks_for_label_studio:
-        args.output_tasks_for_label_studio.parent.mkdir(parents=True, exist_ok=True)
+    if args.label_studio_tasks:
+        args.label_studio_tasks.parent.mkdir(parents=True, exist_ok=True)
 
     articles_index = {}
     if not args.force_reprocess:
@@ -428,7 +474,7 @@ def main():
             logger.info(f"Search results saved to {args.output}")
 
         # if requested, then write json in label studio format
-        if args.output_tasks_for_label_studio:
+        if args.label_studio_tasks:
             tasks = []
             for article in articles:
                 text = article.get("text", "").strip()
@@ -445,9 +491,9 @@ def main():
             if not tasks:
                 logger.warning("No valid tasks to write, all articles were empty or invalid.")
             else:
-                with open(args.output_tasks_for_label_studio, "w", encoding="utf-8") as f:
+                with open(args.label_studio_tasks, "w", encoding="utf-8") as f:
                     json.dump(tasks, f, ensure_ascii=False, indent=2)
-                logger.info(f"Label Studio task file saved to {args.output_tasks_for_label_studio}")
+                logger.info(f"Label Studio task file saved to {args.label_studio_tasks}")
 
         analyze_search_results(articles)
     else:

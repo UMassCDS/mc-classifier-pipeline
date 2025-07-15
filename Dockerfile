@@ -40,7 +40,7 @@ RUN python -m pip install --upgrade pip && \
     pip install /tmp/wheels/* && \
     rm -rf /tmp/wheels                 # reclaim layer space
 
-# copy source code again for live reload in dev containers
+# copy source code for runtime execution
 COPY src ./src    
 
 # default CLI entry 

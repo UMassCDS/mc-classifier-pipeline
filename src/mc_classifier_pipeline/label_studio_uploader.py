@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 import json
 from io import BytesIO
+from typing import Optional
 
 import requests
 from dotenv import load_dotenv
@@ -46,8 +47,10 @@ def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_stu
         raise requests.RequestException(f"Upload failed with response {response.status_code}: {response.text}")
 
 
-def parse_args():
-    """Parse command line arguments."""
+def build_uploader_parser(add_help=True):
+    """
+    Build the argument parser for the Label Studio uploader.
+    """
 
     parser = argparse.ArgumentParser(
         description="Upload formatted Label Studio tasks JSON to a specified Label Studio project via API.",
@@ -59,15 +62,16 @@ def parse_args():
             # Upload a custom tasks file to Label Studio project with id 100
             python src/mc_classifier_pipeline/label_studio_uploader.py data/custom_tasks.json -p 100
         """,
+        add_help=add_help,
     )
 
     parser.add_argument(
-        "task_file",
+        "--label-studio-tasks",
         type=Path,
-        nargs="?",
         default=Path("data/labelstudio_tasks.json"),
-        help="Path to the Label Studio tasks JSON file (default: data/labelstudio_tasks.json)",
+        help="Path to the Label Studio tasks JSON file",
     )
+
     parser.add_argument(
         "--project_id",
         "-p",
@@ -75,11 +79,17 @@ def parse_args():
         required=True,
         help="The project id for the Label Studio project where tasks will be added",
     )
-    return parser.parse_args()
+    return parser
 
 
-def main():
-    args = parse_args()
+def parse_args():
+    """Parse command line arguments."""
+    return build_uploader_parser().parse_args()
+
+
+def main(args: Optional[argparse.Namespace] = None):
+    if args is None:
+        args = parse_args()
     label_studio_host = os.getenv("LABEL_STUDIO_HOST")
     label_studio_token = os.getenv("LABEL_STUDIO_TOKEN")
     missing_vars = []
@@ -95,11 +105,11 @@ def main():
 
     ls_client = LabelStudio(base_url=label_studio_host, api_key=label_studio_token)
 
-    if not args.task_file.exists():
-        raise FileNotFoundError(f"Task file '{args.task_file}' not found.")
+    if not args.label_studio_tasks.exists():
+        raise FileNotFoundError(f"Task file '{args.label_studio_tasks}' not found.")
 
     try:
-        with open(args.task_file, encoding="utf-8") as f:
+        with open(args.label_studio_tasks, encoding="utf-8") as f:
             all_tasks = json.load(f)
     except json.JSONDecodeError as e:
         logger.error("Task file is not valid JSON: %s", e)

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mc_pipeline:
     build:
@@ -12,9 +10,10 @@ services:
       - .env            
 
     volumes:
+      - ./src:/app/src
       - ./data:/app/data                 
 
-    entrypoint: ["python", "-m", "mc_classifier_pipeline.doc_retriever"]
+    entrypoint: ["python", "-m", "mc_classifier_pipeline.run_pipeline"]
     command: ["--help"]        
 
     # ports:
