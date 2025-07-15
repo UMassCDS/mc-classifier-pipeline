@@ -142,7 +142,7 @@ def search_mediacloud_by_query(
         actual_start = start_date if start_date is not None else default_start
         actual_end = end_date if end_date is not None else default_end
         if collection_ids:
-            results = SEARCH_API.story_list(query, actual_start, actual_end,collection_ids=collection_ids)
+            results = SEARCH_API.story_list(query, actual_start, actual_end, collection_ids=collection_ids)
         else:
             results = SEARCH_API.story_list(query, actual_start, actual_end)
         if results and len(results[0]) > 0:
