@@ -142,6 +142,7 @@ def search_mediacloud_by_query(
         actual_start = start_date if start_date is not None else default_start
         actual_end = end_date if end_date is not None else default_end
         if collection_ids:
+            logger.info(f"Query restricted to {len(collection_ids)}(s) collections with ids: {collection_ids}")
             results = SEARCH_API.story_list(query, actual_start, actual_end, collection_ids=collection_ids)
         else:
             results = SEARCH_API.story_list(query, actual_start, actual_end)
@@ -356,9 +357,9 @@ def parse_arguments():
 
     parser.add_argument(
         "--collection-ids",
-        type=str,
-        help=("Comma-separated list of collection IDs to limit the search to (ID1,ID2,... format)"),
-        default=None,
+        nargs="*",
+        type=int,
+        help=("List of collection IDs to limit the search to (ID1,ID2,... format)"),
     )
 
     # json formatted for label studio
@@ -380,13 +381,6 @@ def main():
     and provides a summary analysis.
     """
     args = parse_arguments()
-    collection_ids = None
-    if args.collection_ids:
-        try:
-            collection_ids = [int(c.strip()) for c in args.collection_ids.split(",") if c.strip()]
-        except ValueError:
-            logger.error("--collection-ids must be a comma-separated list of integers")
-            return
 
     # Default to output Label Studio Json if not specified
     default_label_studio_path = Path("data/labelstudio_tasks.json")
@@ -420,7 +414,7 @@ def main():
         return
 
     articles = search_mediacloud_by_query(
-        args.query, start_date, end_date, args.limit, articles_index, args.raw_dir, collection_ids=collection_ids
+        args.query, start_date, end_date, args.limit, articles_index, args.raw_dir, collection_ids=args.collection_ids
     )
 
     if articles:
