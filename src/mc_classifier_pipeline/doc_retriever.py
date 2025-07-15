@@ -142,7 +142,7 @@ def search_mediacloud_by_query(
         actual_start = start_date if start_date is not None else default_start
         actual_end = end_date if end_date is not None else default_end
         if collection_ids:
-            results = SEARCH_API.story_list(query, actual_start, actual_end,collection_ids=collection_ids)
+            results = SEARCH_API.story_list(query, actual_start, actual_end, collection_ids=collection_ids)
         else:
             results = SEARCH_API.story_list(query, actual_start, actual_end)
         if results and len(results[0]) > 0:
@@ -354,7 +354,12 @@ def parse_arguments():
 
     parser.add_argument("--end-date", required=True, type=str, help="End date for query search (YYYY-MM-DD format)")
 
-    parser.add_argument("--collection-ids", type=str, help=("Comma-separated list of collection IDs to limit the search to (ID1,ID2,... format)"), default=None)
+    parser.add_argument(
+        "--collection-ids",
+        type=str,
+        help=("Comma-separated list of collection IDs to limit the search to (ID1,ID2,... format)"),
+        default=None,
+    )
 
     # json formatted for label studio
     parser.add_argument(
@@ -382,7 +387,7 @@ def main():
         except ValueError:
             logger.error("--collection-ids must be a comma-separated list of integers")
             return
-    
+
     # Default to output Label Studio Json if not specified
     default_label_studio_path = Path("data/labelstudio_tasks.json")
     if not args.output and not args.output_tasks_for_label_studio:
@@ -414,7 +419,9 @@ def main():
         logger.error(f"Invalid date format: {e}. Use YYYY-MM-DD format.")
         return
 
-    articles = search_mediacloud_by_query(args.query, start_date, end_date, args.limit, articles_index, args.raw_dir, collection_ids=collection_ids)
+    articles = search_mediacloud_by_query(
+        args.query, start_date, end_date, args.limit, articles_index, args.raw_dir, collection_ids=collection_ids
+    )
 
     if articles:
         if not args.no_save_json:
