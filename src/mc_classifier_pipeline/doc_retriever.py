@@ -143,7 +143,7 @@ def search_mediacloud_by_query(
         actual_end = end_date if end_date is not None else default_end
         if collection_ids:
             logger.info(f"Query restricted to {len(collection_ids)}(s) collections with ids: {collection_ids}")
-            results = SEARCH_API.story_list(query, actual_start, actual_end, collection_ids=collection_ids)
+            results = SEARCH_API.story_list(query, actual_start, actual_end, collection_ids= collection_ids)
         else:
             results = SEARCH_API.story_list(query, actual_start, actual_end)
         if results and len(results[0]) > 0:
@@ -326,7 +326,7 @@ def parse_arguments():
             # Search by query and save articles in Label Studio JSON format
             python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --output-tasks-for-label-studio data/labelstudio_tasks.json
             # Search by query and save articles from a collection in Label Studio JSON format
-            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --collection-ids 34412234,34412118 --output-tasks-for-label-studio data/labelstudio_tasks.json
+            python -m mc_classifier_pipeline.doc_retriever --query "election" --start-date 2024-12-01 --end-date 2024-12-31 --limit 50 --collection-ids 34412234 34412118 --output-tasks-for-label-studio data/labelstudio_tasks.json
         """,
     )
     parser.add_argument("--query", type=str, required=True, help="Search query for Media Cloud API")
@@ -355,12 +355,7 @@ def parse_arguments():
 
     parser.add_argument("--end-date", required=True, type=str, help="End date for query search (YYYY-MM-DD format)")
 
-    parser.add_argument(
-        "--collection-ids",
-        nargs="*",
-        type=int,
-        help=("List of collection IDs to limit the search to (ID1,ID2,... format)"),
-    )
+    parser.add_argument("--collection-ids",nargs="*",type=int,help=("List of collection IDs to limit the search to (ID1 ID2 ... format)"),)
 
     # json formatted for label studio
     parser.add_argument(
