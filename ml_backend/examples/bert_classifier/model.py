@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
-    print('There are %d GPU(s) available.' % torch.cuda.device_count())
-    print('We will use the GPU:', torch.cuda.get_device_name(0))
+    print("There are %d GPU(s) available." % torch.cuda.device_count())
+    print("We will use the GPU:", torch.cuda.get_device_name(0))
 else:
-    print('No GPU available, using the CPU instead.')
+    print("No GPU available, using the CPU instead.")
     device = torch.device("cpu")
 
 
@@ -53,77 +53,73 @@ class BertClassifier(LabelStudioMLBase):
     finetuned_model_name : str
         The name of the finetuned model
     """
-    LABEL_STUDIO_HOST = os.getenv('LABEL_STUDIO_HOST', 'http://localhost:8080')
-    LABEL_STUDIO_API_KEY = os.getenv('LABEL_STUDIO_API_KEY')
-    START_TRAINING_EACH_N_UPDATES = int(os.getenv('START_TRAINING_EACH_N_UPDATES', 10))
-    LEARNING_RATE = float(os.getenv('LEARNING_RATE', 2e-5))
-    NUM_TRAIN_EPOCHS = int(os.getenv('NUM_TRAIN_EPOCHS', 3))
-    WEIGHT_DECAY = float(os.getenv('WEIGHT_DECAY', 0.01))
-    baseline_model_name = os.getenv('BASELINE_MODEL_NAME', 'bert-base-multilingual-cased')
-    MODEL_DIR = os.getenv('MODEL_DIR', './results')
-    finetuned_model_name = os.getenv('FINETUNED_MODEL_NAME', 'finetuned-model')
+
+    LABEL_STUDIO_HOST = os.getenv("LABEL_STUDIO_HOST", "http://localhost:8080")
+    LABEL_STUDIO_API_KEY = os.getenv("LABEL_STUDIO_API_KEY")
+    START_TRAINING_EACH_N_UPDATES = int(os.getenv("START_TRAINING_EACH_N_UPDATES", 10))
+    LEARNING_RATE = float(os.getenv("LEARNING_RATE", 2e-5))
+    NUM_TRAIN_EPOCHS = int(os.getenv("NUM_TRAIN_EPOCHS", 3))
+    WEIGHT_DECAY = float(os.getenv("WEIGHT_DECAY", 0.01))
+    baseline_model_name = os.getenv("BASELINE_MODEL_NAME", "bert-base-multilingual-cased")
+    MODEL_DIR = os.getenv("MODEL_DIR", "./results")
+    finetuned_model_name = os.getenv("FINETUNED_MODEL_NAME", "finetuned-model")
     _model = None
 
     def get_labels(self):
         li = self.label_interface
-        from_name, _, _ = li.get_first_tag_occurence('Choices', 'Text')
+        from_name, _, _ = li.get_first_tag_occurence("Choices", "Text")
         tag = li.get_tag(from_name)
         return tag.labels
 
     def setup(self):
-        self.set("model_version", f'{self.__class__.__name__}-v0.0.1')
+        self.set("model_version", f"{self.__class__.__name__}-v0.0.1")
 
     def _lazy_init(self):
         if not self._model:
             try:
                 chk_path = str(pathlib.Path(self.MODEL_DIR) / self.finetuned_model_name)
                 self._model = pipeline("text-classification", model=chk_path, tokenizer=chk_path)
-            except:
+            except Exception:
                 # if finetuned model is not available, use the baseline model, with the labels from the label_interface
                 self._model = pipeline(
-                    "text-classification",
-                    model=self.baseline_model_name,
-                    tokenizer=self.baseline_model_name)
+                    "text-classification", model=self.baseline_model_name, tokenizer=self.baseline_model_name
+                )
 
                 labels = self.get_labels()
                 self._model.model.config.id2label = {i: label for i, label in enumerate(labels)}
                 self._model.model.config.label2id = {label: i for i, label in enumerate(labels)}
 
     def predict(self, tasks: List[Dict], context: Optional[Dict] = None, **kwargs) -> ModelResponse:
-        """ Write your inference logic here
-            :param tasks: [Label Studio tasks in JSON format](https://labelstud.io/guide/task_format.html)
-            :param context: [Label Studio context in JSON format](https://labelstud.io/guide/ml_create#Implement-prediction-logic)
-            :return predictions: [Predictions array in JSON format](https://labelstud.io/guide/export.html#Label-Studio-JSON-format-of-annotated-tasks)
+        """Write your inference logic here
+        :param tasks: [Label Studio tasks in JSON format](https://labelstud.io/guide/task_format.html)
+        :param context: [Label Studio context in JSON format](https://labelstud.io/guide/ml_create#Implement-prediction-logic)
+        :return predictions: [Predictions array in JSON format](https://labelstud.io/guide/export.html#Label-Studio-JSON-format-of-annotated-tasks)
         """
 
         # TODO: this may result in single-time timeout for large models - consider adjusting the timeout on Label Studio side
         self._lazy_init()
 
         li = self.label_interface
-        from_name, to_name, value = li.get_first_tag_occurence('Choices', 'Text')
-        texts = [self.preload_task_data(task, task['data'][value]) for task in tasks]
+        from_name, to_name, value = li.get_first_tag_occurence("Choices", "Text")
+        texts = [self.preload_task_data(task, task["data"][value]) for task in tasks]
 
         model_predictions = self._model(texts)
         predictions = []
         for prediction in model_predictions:
             logger.debug(f"Prediction: {prediction}")
-            region = li.get_tag(from_name).label(prediction['label'])
-            pv = PredictionValue(
-                score=prediction['score'],
-                result=[region],
-                model_version=self.get('model_version')
-            )
+            region = li.get_tag(from_name).label(prediction["label"])
+            pv = PredictionValue(score=prediction["score"], result=[region], model_version=self.get("model_version"))
             predictions.append(pv)
 
         return ModelResponse(predictions=predictions)
 
     def fit(self, event, data, **additional_params):
         """Download dataset from Label Studio and prepare data for training in BERT"""
-        if event not in ('ANNOTATION_CREATED', 'ANNOTATION_UPDATED', 'START_TRAINING'):
+        if event not in ("ANNOTATION_CREATED", "ANNOTATION_UPDATED", "START_TRAINING"):
             logger.info(f"Skip training: event {event} is not supported")
             return
         logger.debug(f"Project details payload for training: {data}")
-        project_id = data['project']['id']
+        project_id = data["project"]["id"]
 
         # dowload annotated tasks from Label Studio
         ls = label_studio_sdk.Client(self.LABEL_STUDIO_HOST, self.LABEL_STUDIO_API_KEY)
@@ -132,27 +128,23 @@ class BertClassifier(LabelStudioMLBase):
 
         logger.info(f"Downloaded {len(tasks)} labeled tasks from Label Studio")
         logger.debug(f"Tasks: {tasks}")
-        if len(tasks) % self.START_TRAINING_EACH_N_UPDATES != 0 and event != 'START_TRAINING':
+        if len(tasks) % self.START_TRAINING_EACH_N_UPDATES != 0 and event != "START_TRAINING":
             # skip training if the number of tasks is not divisible by START_TRAINING_EACH_N_UPDATES
             logger.info(f"Skip training: the number of tasks is not divisible by {self.START_TRAINING_EACH_N_UPDATES}")
             return
 
-        from_name, to_name, value = self.label_interface.get_first_tag_occurence('Choices', 'Text')
+        from_name, to_name, value = self.label_interface.get_first_tag_occurence("Choices", "Text")
 
-        ds_raw = {
-            'id': [],
-            'text': [],
-            'label': []
-        }
+        ds_raw = {"id": [], "text": [], "label": []}
         for task in tasks:
-            for annotation in task['annotations']:
-                if 'result' in annotation:
-                    for result in annotation['result']:
-                        if 'choices' in result['value']:
-                            ds_raw['id'].append(task['id'])
-                            text = self.preload_task_data(task, task['data'][value])
-                            ds_raw['text'].append(text)
-                            ds_raw['label'].append(result['value']['choices'])
+            for annotation in task["annotations"]:
+                if "result" in annotation:
+                    for result in annotation["result"]:
+                        if "choices" in result["value"]:
+                            ds_raw["id"].append(task["id"])
+                            text = self.preload_task_data(task, task["data"][value])
+                            ds_raw["text"].append(text)
+                            ds_raw["label"].append(result["value"]["choices"])
 
         hf_dataset = Dataset.from_dict(ds_raw)
         logger.debug(f"Dataset: {hf_dataset}")
@@ -189,12 +181,12 @@ class BertClassifier(LabelStudioMLBase):
 
         # Define training arguments
         training_args = TrainingArguments(
-            output_dir=str(pathlib.Path(self.MODEL_DIR) / 'training_output'),
+            output_dir=str(pathlib.Path(self.MODEL_DIR) / "training_output"),
             learning_rate=2e-5,
             evaluation_strategy="no",
             num_train_epochs=3,
             weight_decay=0.01,
-            log_level='info'
+            log_level="info",
         )
         logger.debug(f"Training arguments: {training_args}")
 

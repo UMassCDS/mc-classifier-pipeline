@@ -18,44 +18,35 @@ from model import BertClassifier
 @pytest.fixture
 def client():
     from _wsgi import init_app
+
     app = init_app(model_class=BertClassifier)
-    app.config['TESTING'] = True
+    app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
 
 
 def test_predict(client):
     request = {
-        'tasks': [{
-            'data': {
-                'text': 'Today is a great day to play football.'
-            }
-        }],
+        "tasks": [{"data": {"text": "Today is a great day to play football."}}],
         # Your labeling configuration here
-        'label_config':
-            '<View>'
-            '<Text name="text" value="$text" />'
-            '<Choices name="topic" toName="text" choice="single">'
-            '<Choice value="sports" />'
-            '<Choice value="politics" />'
-            '<Choice value="technology" />'
-            '</Choices>'
-            '</View>'
+        "label_config": "<View>"
+        '<Text name="text" value="$text" />'
+        '<Choices name="topic" toName="text" choice="single">'
+        '<Choice value="sports" />'
+        '<Choice value="politics" />'
+        '<Choice value="technology" />'
+        "</Choices>"
+        "</View>",
     }
 
-    expected_response_results = [{
-        'result': [{
-            'from_name': 'topic',
-            'to_name': 'text',
-            'type': 'choices',
-            'value': {'choices': ['sports']}
-        }]
-    }]
+    expected_response_results = [
+        {"result": [{"from_name": "topic", "to_name": "text", "type": "choices", "value": {"choices": ["sports"]}}]}
+    ]
 
-    response = client.post('/predict', data=json.dumps(request), content_type='application/json')
+    response = client.post("/predict", data=json.dumps(request), content_type="application/json")
     assert response.status_code == 200
     response = json.loads(response.data)
-    assert len(expected_response_results) == len(response['results'])
+    assert len(expected_response_results) == len(response["results"])
 
 
 # TODO

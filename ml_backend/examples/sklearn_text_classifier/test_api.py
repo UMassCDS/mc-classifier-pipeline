@@ -18,21 +18,18 @@ from model import SklearnTextClassifier
 @pytest.fixture
 def client():
     from _wsgi import init_app
+
     app = init_app(model_class=SklearnTextClassifier)
-    app.config['TESTING'] = True
+    app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
 
 
 def test_predict(client):
     request = {
-        'tasks': [{
-            'data': {
-                'text': 'That is positive!'
-            }
-        }],
+        "tasks": [{"data": {"text": "That is positive!"}}],
         # Your labeling configuration here
-        'label_config': '''
+        "label_config": """
         <View>
   <Text name="text" value="$text"/>
   <View style="box-shadow: 2px 2px 5px #999;
@@ -47,11 +44,11 @@ def test_predict(client):
     </Choices>
   </View>
 </View>
-        '''
+        """,
     }
 
-    response = client.post('/predict', data=json.dumps(request), content_type='application/json')
+    response = client.post("/predict", data=json.dumps(request), content_type="application/json")
     assert response.status_code == 200
     response = json.loads(response.data)
-    assert response['results'][0]['model_version'] == 'SklearnTextClassifier-v0.0.1'
-    assert response['results'][0]['result'][0]['value']['choices'][0] == 'Positive'
+    assert response["results"][0]["model_version"] == "SklearnTextClassifier-v0.0.1"
+    assert response["results"][0]["result"][0]["value"]["choices"][0] == "Positive"
