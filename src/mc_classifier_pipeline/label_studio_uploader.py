@@ -1,6 +1,7 @@
 import argparse
 import os
 import logging
+from pathlib import Path
 import json
 from io import BytesIO
 from typing import Optional
@@ -62,6 +63,13 @@ def build_uploader_parser(add_help=True):
             python src/mc_classifier_pipeline/label_studio_uploader.py data/custom_tasks.json -p 100
         """,
         add_help=add_help,
+    )
+
+    parser.add_argument(
+        "--label-studio-tasks",
+        type=Path,
+        default=Path("data/labelstudio_tasks.json"),
+        help="Path to the Label Studio tasks JSON file",
     )
 
     parser.add_argument(

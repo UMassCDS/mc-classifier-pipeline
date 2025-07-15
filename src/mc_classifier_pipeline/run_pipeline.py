@@ -24,6 +24,7 @@ def parse_cli():
     parser = argparse.ArgumentParser(
         description="End-to-end MediaCloud -> Label Studio pipeline",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        conflict_handler='resolve',
         # Use argument parsers from doc_retriever and label_studio_uploader as parents
         parents=[
             dr.build_arg_parser(add_help=False),
