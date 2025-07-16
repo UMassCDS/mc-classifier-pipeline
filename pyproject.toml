@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mc_classifier_pipeline"
-version = "2.1.0"
-description = "A template repo for data science and machine learning projects at UMass Center for Data Science."
+version = "0.0.1"
+description = "Pipelines for preparing documents from Media Cloud's news archive for annotation and machine learning."
 readme = "README.md"
 
 # What version of python does your library work with?
@@ -23,9 +23,13 @@ classifiers = [
 # All the dependencies needed for running your module go here
 dependencies = [
     "dvc>=2.42.0",
+    "label-studio-sdk>1.0",
+    "mediacloud",
     "numpy",
     "pandas",
+    "python-dotenv",
     "scikit-learn",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
@@ -35,16 +39,26 @@ test = ["pytest"]
 # Dependencies that are useful only to developers, like an autoformatter and
 # support for visualizations in jupyter notebooks go here
 dev = [
-    "ruff",
+    "bs4",
+    "dotenv",
     "jupyter",
+    "lxml_html_clean",
     "matplotlib",
+    "mediacloud",
+    "newspaper3k",
+    "nltk",
+    "requests",
+    "ruff",
     "seaborn",
     "sphinx",
+    "textblob"
 ]
 
 # If your project contains scripts you'd like to be available command line, you can define them here.
 # The value must be of the form "<package_name>:<module_name>.<function>"
 [project.scripts]
+retrieve-mc-docs = "mc_classifier_pipeline.doc_retriever:main"
+mc-pipeline = "mc_classifier_pipeline.run_pipeline:main"
 
 # Add customizations to the Ruff linter as described on https://docs.astral.sh/ruff/configuration/
 [tool.ruff]

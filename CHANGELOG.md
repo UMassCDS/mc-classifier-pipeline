@@ -8,3 +8,9 @@ You should also add project tags for each release in Github, see [Managing relea
 
 ## [Unreleased]
 
+- Add `doc_retriever` script for fetching articles from Media Cloud.
+- Modify `doc_retriever` script to store in Label Studio formatted Json.
+- Add `label_studio_uploader` script for uploading data to Label Studio.
+- Refactor parsing arguments in both `doc_retriever` and `label_studio_uploader`
+- Add `run_pipeline` script for connecting document-retrieval and label-studio-upload steps
+- Modify `doc_retriever` script to accept optional collection ID

@@ -1,1 +1,7 @@
-/gutenberg_counts.csv
+raw_articles/
+failed_urls.txt
+articles_index.json
+search_results.csv
+labelstudio_tasks.json
+uploaded_tasks_index.json
+*.txt

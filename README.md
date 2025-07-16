@@ -1,10 +1,5 @@
 # Media Cloud Query + Model toolkit
 
-<!-- This repository presents some opinionated guidelines for creating a data science and machine learning project in Python, using the simple example of scripts for counting words in text documents. By following these guidelines you can make it easy for your code to be tested and understood by others (or yourself months from now), so they can reproduce your experiments.
-
-These are just guidelines, not strict rules, so feel free to alter them to meet your needs. Just keep in mind the goal is that others can understand and run your code, even if you aren't around to ask questions to!
-
-This template draws a lot of inspiration from [Cookiecutter Data Science](https://drivendata.github.io/cookiecutter-data-science/). Please read their awesome explanations! -->
 ## Table of Contents
 
 - [Overview](#overview)
@@ -26,6 +21,18 @@ Use these steps for setting up a development environment to install and work wit
 	- If you want to just use the scripts and package features, install the project by running `pip install .` from the root directory.
 	<!-- - If you will be changing the code and running tests, you can install it by running `pip install -e .[test,dev]`. The `-e/--editable` flag means local changes to the project code will always be available with the package is imported. You wouldn't use this in production, but it's useful for development.
   - Note for zsh users: use `pip install -e .'[test,dev]'` -->
+
+### Environment Variables
+
+To use the document retriever script, you must set the `MC_API_KEY` environment variable. To use the label studio uploader script, you must set `LABEL_STUDIO_HOST` and `LABEL_STUDIO_TOKEN` environment variables. Both scripts uses the `python-dotenv` library, so you can create a `.env` file in the project's root directory:
+
+```
+MC_API_KEY="YOUR_MEDIA_CLOUD_API_KEY_HERE"
+LABEL_STUDIO_HOST="YOUR_LABEL_STUDIO_HOST_HERE"
+LABEL_STUDIO_TOKEN="YOUR_LABEL_STUDIO_TOKEN_HERE"
+```
+
+The script will automatically load this variable.
 
 
 For example, if you use Conda, you would run the following to create an environment named `template` with python version 3.10, then activate it and install the package in developer mode:

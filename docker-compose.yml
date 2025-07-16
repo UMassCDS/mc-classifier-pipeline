@@ -1,0 +1,23 @@
+services:
+  mc_pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mc_pipeline:latest            
+    container_name: mc_pipeline
+
+    env_file:
+      - .env            
+
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data                 
+
+    entrypoint: ["python", "-m", "mc_classifier_pipeline.run_pipeline"]
+    command: ["--help"]        
+
+    # ports:
+    #   - "8000:8000"          
+
+    tty: true                
+    working_dir: /app
