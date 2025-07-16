@@ -36,6 +36,17 @@ dependencies = [
 # Extra dependencies only needed for running tests go here
 test = ["pytest"]
 
+# Heavy ML dependencies for label studio backends
+ml-backend = [
+    "label-studio-ml>=1.0.9",
+    "torch>=2.0.0",
+    "transformers>=4.21.0",
+    "datasets>=2.0.0",
+    "accelerate",
+    "sentencepiece",
+    "protobuf"
+]
+
 # Dependencies that are useful only to developers, like an autoformatter and
 # support for visualizations in jupyter notebooks go here
 dev = [
