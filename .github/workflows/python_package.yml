@@ -3,7 +3,7 @@ name: Python package
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [ $default-branch ]
   workflow_dispatch:
 
 
