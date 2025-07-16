@@ -3,7 +3,7 @@ name: Python package
 on:
   pull_request:
   push:
-    branches: [ ml-backend-repo ]
+    branches: [ main ]
   workflow_dispatch:
 
 
