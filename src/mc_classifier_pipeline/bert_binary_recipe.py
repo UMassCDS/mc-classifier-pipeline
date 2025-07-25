@@ -7,7 +7,7 @@ from typing import Dict, Optional, Tuple, Any
 import pandas as pd
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
@@ -19,10 +19,15 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.preprocessing import LabelEncoder
 import joblib
 
-from . import utils
+# Disable MLflow tracking completely
+os.environ["MLFLOW_TRACKING_DISABLED"] = "True"
+os.environ["DISABLE_MLFLOW_INTEGRATION"] = "True"
+
+# from . import utils 
+from utils import configure_logging # this is for local running, the above is for running in the pipeline
 
 # Set up logging
-utils.configure_logging()
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -156,12 +161,12 @@ class BERTTextClassifier:
             "learning_rate": 2e-5,
             "per_device_train_batch_size": 16,
             "per_device_eval_batch_size": 16,
-            "num_train_epochs": 3,
+            "num_train_epochs": 1,
             "weight_decay": 0.01,
-            "warmup_steps": 100,
+            "warmup_steps": 0,
             "max_length": 512,
             "save_strategy": "epoch",
-            "evaluation_strategy": "epoch",
+            "eval_strategy": "epoch",
             "logging_strategy": "steps",
             "logging_steps": 10,
             "load_best_model_at_end": True,
@@ -185,7 +190,7 @@ class BERTTextClassifier:
             train_df, test_df, text_column, label_column, default_hyperparams["max_length"]
         )
 
-        # Set up training arguments
+        # Set up training arguments with explicit report_to=[] to disable all integrations
         self.training_args = TrainingArguments(
             output_dir=save_path,
             learning_rate=default_hyperparams["learning_rate"],
@@ -195,14 +200,15 @@ class BERTTextClassifier:
             weight_decay=default_hyperparams["weight_decay"],
             warmup_steps=default_hyperparams["warmup_steps"],
             save_strategy=default_hyperparams["save_strategy"],
-            evaluation_strategy=default_hyperparams["evaluation_strategy"],
+            eval_strategy=default_hyperparams["eval_strategy"],
             logging_strategy=default_hyperparams["logging_strategy"],
             logging_steps=default_hyperparams["logging_steps"],
             load_best_model_at_end=default_hyperparams["load_best_model_at_end"],
             metric_for_best_model=default_hyperparams["metric_for_best_model"],
             greater_is_better=default_hyperparams["greater_is_better"],
             save_total_limit=default_hyperparams["save_total_limit"],
-            report_to=None,  # Can add wandb/tensorboard logging here if needed
+            report_to=[],  # Explicitly disable all reporting integrations (MLflow, wandb, tensorboard, etc.)
+            disable_tqdm=False,  # Keep progress bars
         )
 
         # Initialize trainer
@@ -243,10 +249,12 @@ class BERTTextClassifier:
             "training_time": datetime.now().isoformat(),
             "final_eval_results": eval_result,
             "train_results": {
-                "train_loss": train_result.training_loss,
-                "train_runtime": train_result.training_time,
-                "train_samples_per_second": train_result.train_samples_per_second,
-                "train_steps_per_second": train_result.train_steps_per_second,
+                "training_loss": getattr(train_result, "training_loss", {}),
+                "train_runtime": getattr(train_result, "metrics", {}).get("train_runtime", None),
+                "train_samples_per_second": getattr(train_result, "metrics", {}).get("train_samples_per_second", None),
+                "train_steps_per_second": getattr(train_result, "metrics", {}).get("train_steps_per_second", None),
+                "total_flos": getattr(train_result, "metrics", {}).get("total_flos", None),
+                "epoch": getattr(train_result, "metrics", {}).get("epoch", None)
             },
             "text_column": text_column,
             "label_column": label_column,
@@ -337,34 +345,23 @@ class BERTTextClassifier:
         return self.metadata
 
 
-# Example usage, should probably be in the orchestrator script
-def train_and_save_bert_classifier(
-    model_name: str,
-    project_folder: str,
-    save_path: str,
-    text_column: str = "text",
-    label_column: str = "label",
-    hyperparams: Optional[Dict[str, Any]] = None,
-) -> Tuple[str, dict]:
-    """
-    Train a HuggingFace BERT-based model for text classification and save it.
-    Returns the save path and metadata.
-    """
-    classifier = BERTTextClassifier(model_name)
-    metadata = classifier.train(
-        project_folder=project_folder,
-        save_path=save_path,
-        text_column=text_column,
-        label_column=label_column,
-        hyperparams=hyperparams,
-    )
-    return save_path, metadata
+# if __name__ == "__main__":
+#     classifier = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased")
+#     metadata = classifier.train(
+#         project_folder="data",
+#         save_path="models/distilbert-base-uncased",
+#         text_column="text",
+#         label_column="label",
+#     )
+#     print("Metadata: ", metadata)
 
+#     classifier = BERTTextClassifier.load_for_inference(model_path="models/distilbert-base-uncased")
+#     predictions = classifier.predict(
+#         texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
+#     )
+#     print(predictions) # (array(['negative'], dtype=object), array([[0.7060923, 0.2939077]], dtype=float32))
 
-def load_model_and_predict(model_path: str, texts: list, return_probabilities: bool = False):
-    """
-    Load a trained model and make predictions.
-    Returns predictions (and probabilities if requested).
-    """
-    classifier = BERTTextClassifier.load_for_inference(model_path)
-    return classifier.predict(texts, return_probabilities=return_probabilities)
+#     label = classifier.predict(
+#         texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=False
+#     )
+#     print(label) # ['negative']
