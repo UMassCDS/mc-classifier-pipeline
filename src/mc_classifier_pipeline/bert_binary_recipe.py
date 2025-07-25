@@ -23,8 +23,8 @@ import joblib
 os.environ["MLFLOW_TRACKING_DISABLED"] = "True"
 os.environ["DISABLE_MLFLOW_INTEGRATION"] = "True"
 
-# from . import utils 
-from utils import configure_logging # this is for local running, the above is for running in the pipeline
+# from . import utils
+from utils import configure_logging  # this is for local running, the above is for running in the pipeline
 
 # Set up logging
 configure_logging()
@@ -254,7 +254,7 @@ class BERTTextClassifier:
                 "train_samples_per_second": getattr(train_result, "metrics", {}).get("train_samples_per_second", None),
                 "train_steps_per_second": getattr(train_result, "metrics", {}).get("train_steps_per_second", None),
                 "total_flos": getattr(train_result, "metrics", {}).get("total_flos", None),
-                "epoch": getattr(train_result, "metrics", {}).get("epoch", None)
+                "epoch": getattr(train_result, "metrics", {}).get("epoch", None),
             },
             "text_column": text_column,
             "label_column": label_column,
