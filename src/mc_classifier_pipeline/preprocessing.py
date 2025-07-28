@@ -106,9 +106,9 @@ def download_tasks_and_annotations(client: LabelStudio, project_id: int) -> List
             if hasattr(task, 'annotations') and task.annotations:
                 for annotation in task.annotations:
                     annotation_dict = {
-                        "id": annotation["id"] if "id" in annotation else annotation.get("id"),
-                        "result": annotation["result"] if "result" in annotation else annotation.get("result"),
-                        "completed_by": annotation.get("completed_by", None),
+                        "id": annotation.get("id"),
+                        "result": annotation.get("result"),
+                        "completed_by": annotation.get("completed_by"),
                         "created_at": annotation.get("created_at", ''),
                         "was_cancelled": annotation.get("was_cancelled", False),
                     }
@@ -187,9 +187,7 @@ def extract_text_and_labels(tasks: List[Dict[str, Any]], target_label: Optional[
             
             # Create record if we have labels
             if labels:
-                # Use the first label if multiple (could be modified for multi-label)
                 label = labels[0] if len(labels) == 1 else labels
-                
                 record = {
                     "text": text,
                     "label": label,
@@ -209,20 +207,19 @@ def extract_text_and_labels(tasks: List[Dict[str, Any]], target_label: Optional[
     logger.info(f"Skipped {skipped_count} tasks (no annotations or no text)")
     
     if records:
-        # Show label distribution
         if isinstance(records[0]["label"], str):
             label_counts = Counter(record["label"] for record in records)
         else:
-            # Handle multi-label case, flatten all_labels to only strings
+            # Handle multi-label tasks
             def flatten_labels(labels):
                 flat = []
-                for l in labels:
-                    if isinstance(l, list):
-                        flat.extend(flatten_labels(l))
+                for label in labels:
+                    if isinstance(label, list):
+                        flat.extend(flatten_labels(label))
                     else:
-                        flat.append(l)
+                        flat.append(label)
                 return flat
-
+            
             all_labels = []
             for record in records:
                 label = record["label"]
@@ -259,7 +256,6 @@ def create_train_test_split(
         logger.warning("No records to split")
         return [], []
     
-    # Convert to DataFrame for easier handling
     df = pd.DataFrame(records)
     
     # Handle multi-label case by using first label for stratification
@@ -269,7 +265,6 @@ def create_train_test_split(
     else:
         stratify_labels = df["label"]
     
-    # Check if we have enough samples for stratification
     label_counts = stratify_labels.value_counts()
     min_samples = label_counts.min()
     
@@ -293,13 +288,6 @@ def create_train_test_split(
         
         logger.info(f"Split complete: {len(train_records)} training, {len(test_records)} test samples")
         
-        # Log label distribution in splits
-        if isinstance(records[0]["label"], str):
-            train_labels = Counter(record["label"] for record in train_records)
-            test_labels = Counter(record["label"] for record in test_records)
-            logger.info(f"Training label distribution: {dict(train_labels)}")
-            logger.info(f"Test label distribution: {dict(test_labels)}")
-        
         return train_records, test_records
         
     except Exception as e:
@@ -311,6 +299,7 @@ def save_data_splits(
     train_records: List[Dict[str, Any]], 
     test_records: List[Dict[str, Any]], 
     output_dir: Path,
+    project_id: int,
     experiment_name: Optional[str] = None
 ) -> Path:
     """
@@ -329,20 +318,7 @@ def save_data_splits(
         OSError: If directory creation or file writing fails
         ValueError: If data cannot be converted to DataFrame
     """
-    if output_dir is None:
-        root_dir = Path("experiments")
-    else:
-        root_dir = Path(output_dir)
-
-    from inspect import currentframe
-    frame = currentframe()
-    while frame:
-        if 'args' in frame.f_locals:
-            project_id = str(frame.f_locals['args'].project_id)
-            break
-        frame = frame.f_back
-    else:
-        raise RuntimeError("Could not find project_id.")
+    root_dir = Path(output_dir)
 
     # Use experiment_name as timestamp if not provided
     if experiment_name is None:
@@ -358,24 +334,21 @@ def save_data_splits(
         logger.error(f"Failed to create experiment directory {experiment_dir}: {e}")
         raise
     logger.info(f"Saving data splits to {experiment_dir}")
-    if train_records:
-        try:
+    try:
+        if train_records:
             train_df = pd.DataFrame(train_records)
             train_file = experiment_dir / "train.csv"
             train_df.to_csv(train_file, index=False)
             logger.info(f"Training data saved: {train_file} ({len(train_records)} records)")
-        except Exception as e:
-            logger.error(f"Failed to save training data: {e}")
-            raise
-    if test_records:
-        try:
+        
+        if test_records:
             test_df = pd.DataFrame(test_records)
             test_file = experiment_dir / "test.csv"
             test_df.to_csv(test_file, index=False)
             logger.info(f"Test data saved: {test_file} ({len(test_records)} records)")
-        except Exception as e:
-            logger.error(f"Failed to save test data: {e}")
-            raise
+    except Exception as e:
+        logger.error(f"Failed to save data splits: {e}")
+        raise
     return experiment_dir
 
 
@@ -407,19 +380,14 @@ def create_metadata(
         test_labels = Counter(record["label"] for record in test_records)
     
     # Compute Label Studio task id range
-    all_task_ids = []
-    if train_records:
-        all_task_ids.extend([r["task_id"] for r in train_records if "task_id" in r])
-    if test_records:
-        all_task_ids.extend([r["task_id"] for r in test_records if "task_id" in r])
-    task_id_range = None
-    if all_task_ids:
-        task_id_range = [min(all_task_ids), max(all_task_ids)]
+    all_records = (train_records or []) + (test_records or [])
+    task_ids = [r["task_id"] for r in all_records if "task_id" in r]
+    task_id_range = [min(task_ids), max(task_ids)] if task_ids else None
 
     metadata = {
         "experiment": {
             "created_at": dt.datetime.now().isoformat(),
-            "script_version": "1.0.0",
+            "script_version": "1.1.0",
             "data_seed": getattr(args, 'random_seed', 42),
         },
         "data_split": {
@@ -473,8 +441,7 @@ def save_metadata(metadata: Dict[str, Any], experiment_dir: Path) -> None:
             return {k: convert_paths(v) for k, v in obj.items()}
         elif isinstance(obj, list):
             return [convert_paths(i) for i in obj]
-        else:
-            return obj
+        return obj
 
     metadata = convert_paths(metadata)
 
@@ -628,6 +595,7 @@ def main(args: Optional[argparse.Namespace] = None) -> None:
         train_records, 
         test_records, 
         args.output_dir,
+        args.project_id,
         args.experiment_name
     )
     
