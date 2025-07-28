@@ -1,7 +1,7 @@
 """MC Classifier Pipeline package."""
 
 from . import (
-    bert_binary_recipe,
+    bert_recipe,
     doc_retriever,
     label_studio_uploader,
     run_pipeline,
@@ -9,7 +9,7 @@ from . import (
 )
 
 __all__ = [
-    "bert_binary_recipe",
+    "bert_recipe",
     "doc_retriever",
     "label_studio_uploader",
     "run_pipeline",
