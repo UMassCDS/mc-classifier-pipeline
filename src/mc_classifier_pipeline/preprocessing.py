@@ -306,7 +306,7 @@ def save_data_splits(
     """
     root_dir = Path(output_dir)
 
-    # Use experiment_name as timestamp if not provided
+    # Use timestamp as experiment_name if not provided
     if experiment_name is None:
         experiment_timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     else:
