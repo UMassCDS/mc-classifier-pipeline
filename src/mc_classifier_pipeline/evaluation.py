@@ -12,13 +12,8 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 
 # Configure Logging
-def configure_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-    )
-
-
+from .utils import configure_logging
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -93,6 +88,7 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
 
 
 # Predictions
+
 def predict_labels_hf(
     model_dir: str,
     texts: List[str],
@@ -103,72 +99,23 @@ def predict_labels_hf(
     Hugging Face inference: load tokenizer+model from `model_dir`,
     run batched inference on `texts`, and inverse-transform to string labels.
     """
-    # Lazy imports so sklearn-only runs don't require transformers/torch
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
-    import torch
-
-    tokenizer = AutoTokenizer.from_pretrained(model_dir)
-    model = AutoModelForSequenceClassification.from_pretrained(model_dir)
-
-    # Device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    model.eval()
-
-    # Label encoder
-    enc_path = os.path.join(model_dir, "label_encoder.pkl")
-    if not os.path.exists(enc_path):
-        raise FileNotFoundError(f"label_encoder.pkl missing in {model_dir}")
-    label_encoder = joblib.load(enc_path)
-
-    # Determine max_length
-    if max_length is None:
-        meta_path = os.path.join(model_dir, "metadata.json")
-        if os.path.exists(meta_path):
-            with open(meta_path, "r") as f:
-                meta = json.load(f)
-            max_length = meta.get("hyperparameters", {}).get("max_length", 512)
-        else:
-            max_length = 512
-
-    preds_int: List[int] = []
-
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i : i + batch_size]
-        enc = tokenizer(
-            batch,
-            truncation=True,
-            padding=True,  # dynamic padding per batch
-            max_length=max_length,
-            return_tensors="pt",
-        )
-        enc = {k: v.to(device) for k, v in enc.items()}
-        with torch.no_grad():
-            logits = model(**enc).logits
-            batch_pred = logits.argmax(dim=-1).cpu().numpy().tolist()
-            preds_int.extend(batch_pred)
-
-    # ids -> string labels
-    pred_labels = label_encoder.inverse_transform(np.array(preds_int)) if len(preds_int) else np.array([])
-    return pred_labels.tolist()
-
+    from .bert_recipe import BERTTextClassifier
+    # Use BERTTextClassifier from bert_recipe for HF model predictions
+    classifier = BERTTextClassifier.load_for_inference(model_path=model_dir)
+    predictions = classifier.predict(texts=texts, return_probabilities=False)
+    return predictions
+    
 
 def predict_labels_sklearn(
     model_dir: str,
     texts: List[str],
 ) -> List[str]:
-    """
-    scikit-learn inference: load vectorizer+model+label_encoder from `model_dir`,
-    predict class ids, and inverse-transform to string labels.
-    """
-    model = joblib.load(os.path.join(model_dir, "model.pkl"))
-    vectorizer = joblib.load(os.path.join(model_dir, "vectorizer.pkl"))
-    label_encoder = joblib.load(os.path.join(model_dir, "label_encoder.pkl"))
-
-    X = vectorizer.transform(texts)
-    pred_ids = model.predict(X)
-    pred_labels = label_encoder.inverse_transform(pred_ids)
-    return pred_labels.tolist()
+    """Use SKNaiveBayesTextClassifier for sklearn predictions."""
+    from .sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module  
+    
+    classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)  
+    predictions = classifier.predict(texts=texts, return_probabilities=False)  
+    return predictions
 
 
 # Metrics
