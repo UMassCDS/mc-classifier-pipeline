@@ -8,16 +8,10 @@ from typing import List, Dict, Tuple, Optional
 import joblib
 import numpy as np
 import pandas as pd
-import torch
-from tqdm import tqdm
-from sklearn.metrics import (
-    accuracy_score,
-    precision_recall_fscore_support,
-)
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 
-# Configure logging
+# Configure Logging 
 def configure_logging():
     logging.basicConfig(
         level=logging.INFO,
@@ -47,43 +41,64 @@ def load_test_data(
     return df[[text_column, label_column]].copy()
 
 
-def discover_model_dirs(models_root: str) -> List[str]:
+def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
     """
-    Return subdirectories under models_root that look like saved HF models.
-    We require at least a label_encoder.pkl and a HF config.json.
+    Scan <models_root> for valid model directories.
+
+    A directory qualifies if it has:
+      - Hugging Face:  config.json  AND  label_encoder.pkl
+      - scikit-learn:  model.pkl AND vectorizer.pkl AND label_encoder.pkl
+
+    Returns a list of dicts: [{"path": "<abs_path>", "framework": "hf"|"sklearn", "name": "<dir_name>"}]
     """
     if not os.path.isdir(models_root):
         raise FileNotFoundError(f"Models folder not found: {models_root}")
 
-    model_dirs = []
+    found: List[Dict[str, str]] = []
     for name in sorted(os.listdir(models_root)):
         path = os.path.join(models_root, name)
         if not os.path.isdir(path):
             continue
-        has_encoder = os.path.exists(os.path.join(path, "label_encoder.pkl"))
-        has_config = os.path.exists(os.path.join(path, "config.json"))
-        if has_encoder and has_config:
-            model_dirs.append(path)
+
+        has_label_encoder = os.path.exists(os.path.join(path, "label_encoder.pkl"))
+        is_hf = os.path.exists(os.path.join(path, "config.json"))
+        is_sk = (
+            os.path.exists(os.path.join(path, "model.pkl"))
+            and os.path.exists(os.path.join(path, "vectorizer.pkl"))
+        )
+
+        if has_label_encoder and is_hf:
+            found.append({"path": path, "framework": "hf", "name": name})
+        elif has_label_encoder and is_sk:
+            found.append({"path": path, "framework": "sklearn", "name": name})
         else:
-            logger.warning(f"Skipping {path} (missing label_encoder.pkl or config.json)")
-    if not model_dirs:
+            logger.warning(
+                f"Skipping {path} (missing required files: "
+                f"{'label_encoder.pkl ' if not has_label_encoder else ''}"
+                f"{'' if is_hf or is_sk else 'and neither HF nor sklearn artifacts detected'})"
+            )
+
+    if not found:
         raise RuntimeError(f"No valid model folders found under: {models_root}")
-    return model_dirs
+
+    return found
 
 
-#  Predictions 
-@torch.no_grad()
-def predict_labels_for_model(
+# Predictions 
+def predict_labels_hf(
     model_dir: str,
     texts: List[str],
     max_length: Optional[int] = None,
     batch_size: int = 32,
 ) -> List[str]:
     """
-    Load tokenizer+model from `model_dir`, run batched inference on `texts`,
-    then map predicted ids back to string labels using label_encoder.pkl.
+    Hugging Face inference: load tokenizer+model from `model_dir`,
+    run batched inference on `texts`, and inverse-transform to string labels.
     """
-    # Load tokenizer & model
+    # Lazy imports so sklearn-only runs don't require transformers/torch
+    from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    import torch
+
     tokenizer = AutoTokenizer.from_pretrained(model_dir)
     model = AutoModelForSequenceClassification.from_pretrained(model_dir)
 
@@ -92,13 +107,13 @@ def predict_labels_for_model(
     model.to(device)
     model.eval()
 
-    # Load label encoder
+    # Label encoder
     enc_path = os.path.join(model_dir, "label_encoder.pkl")
     if not os.path.exists(enc_path):
         raise FileNotFoundError(f"label_encoder.pkl missing in {model_dir}")
     label_encoder = joblib.load(enc_path)
 
-    # Try to get max_length from metadata if not provided
+    # Determine max_length
     if max_length is None:
         meta_path = os.path.join(model_dir, "metadata.json")
         if os.path.exists(meta_path):
@@ -108,7 +123,7 @@ def predict_labels_for_model(
         else:
             max_length = 512
 
-    predictions: List[int] = []
+    preds_int: List[int] = []
 
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
@@ -120,24 +135,41 @@ def predict_labels_for_model(
             return_tensors="pt",
         )
         enc = {k: v.to(device) for k, v in enc.items()}
-        logits = model(**enc).logits
-        batch_pred = torch.argmax(logits, dim=-1).cpu().numpy().tolist()
-        predictions.extend(batch_pred)
+        with torch.no_grad():
+            logits = model(**enc).logits
+            batch_pred = logits.argmax(dim=-1).cpu().numpy().tolist()
+            preds_int.extend(batch_pred)
 
-    # Map ids -> string labels
-    pred_labels = label_encoder.inverse_transform(np.array(predictions)) if len(predictions) else np.array([])
-
+    # ids -> string labels
+    pred_labels = label_encoder.inverse_transform(np.array(preds_int)) if len(preds_int) else np.array([])
     return pred_labels.tolist()
 
 
-# Metrics
+def predict_labels_sklearn(
+    model_dir: str,
+    texts: List[str],
+) -> List[str]:
+    """
+    scikit-learn inference: load vectorizer+model+label_encoder from `model_dir`,
+    predict class ids, and inverse-transform to string labels.
+    """
+    model = joblib.load(os.path.join(model_dir, "model.pkl"))
+    vectorizer = joblib.load(os.path.join(model_dir, "vectorizer.pkl"))
+    label_encoder = joblib.load(os.path.join(model_dir, "label_encoder.pkl"))
+
+    X = vectorizer.transform(texts)
+    pred_ids = model.predict(X)
+    pred_labels = label_encoder.inverse_transform(pred_ids)
+    return pred_labels.tolist()
+
+
+# Metrics 
 def compute_weighted_metrics(
     y_true: List[str],
     y_pred: List[str],
 ) -> Dict[str, float]:
     """
     Compute accuracy, precision, recall, F1 with average='weighted',
-    matching the training script's compute_metrics behavior.
     """
     acc = accuracy_score(y_true, y_pred)
     prec, rec, f1, _ = precision_recall_fscore_support(
@@ -154,7 +186,7 @@ def compute_weighted_metrics(
     }
 
 
-#  Main eval 
+# Main eval
 def evaluate_models(
     experiment_dir: str,
     text_column: str,
@@ -177,24 +209,28 @@ def evaluate_models(
     rows = []
     per_model_metrics: Dict[str, Dict] = {}
 
-    logger.info(f"Evaluating {len(model_dirs)} models with weighted metrics (no pos_label)")
-    for mdir in tqdm(model_dirs, desc="Models"):
-        name = os.path.basename(mdir.rstrip("/"))
+    logger.info(f"Evaluating {len(model_dirs)} models with weighted metrics (framework-aware)")
+    for item in model_dirs:
+        mdir, framework, name = item["path"], item["framework"], item["name"]
         try:
-            # Predictions
-            y_pred = predict_labels_for_model(
-                mdir,
-                texts,
-                max_length=max_length,
-                batch_size=batch_size,
-            )
+            if framework == "hf":
+                y_pred = predict_labels_hf(
+                    mdir,
+                    texts,
+                    max_length=max_length,    # used if provided; otherwise per-model metadata/default
+                    batch_size=batch_size,
+                )
+            elif framework == "sklearn":
+                y_pred = predict_labels_sklearn(mdir, texts)
+            else:
+                raise RuntimeError(f"Unknown framework tag for {mdir}: {framework}")
 
-            # Weighted metrics (decision quality, multi-class friendly)
             metrics = compute_weighted_metrics(y_true, y_pred)
 
             row = {
                 "model_name": name,
                 "model_path": mdir,
+                "framework": framework,
                 **metrics,
             }
             rows.append(row)
@@ -202,10 +238,10 @@ def evaluate_models(
 
         except Exception as e:
             logger.exception(f"Failed evaluating {mdir}: {e}")
-            # Record a failed row with NaNs so you can see it in results.csv
             row = {
                 "model_name": name,
                 "model_path": mdir,
+                "framework": framework,
                 "error": str(e),
                 "accuracy": np.nan,
                 "precision": np.nan,
@@ -213,7 +249,7 @@ def evaluate_models(
                 "f1": np.nan,
             }
             rows.append(row)
-            per_model_metrics[name] = {"error": str(e)}
+            per_model_metrics[name] = {"error": str(e), "framework": framework}
 
     results = pd.DataFrame(rows)
 
@@ -237,6 +273,7 @@ def evaluate_models(
         "best_model": {
             "model_name": best_row.get("model_name") if best_row else None,
             "model_path": best_row.get("model_path") if best_row else None,
+            "framework": best_row.get("framework") if best_row else None,
             "metrics": {
                 k: best_row.get(k) for k in ("accuracy", "precision", "recall", "f1")
             } if best_row else None,
@@ -263,10 +300,10 @@ def write_outputs(models_root: str, results: pd.DataFrame, summary: Dict):
     logger.info(f"Summary written: {summary_path}")
 
 
-# ----------------------------- CLI -------------------------------------
+# CLI 
 def build_argparser():
     p = argparse.ArgumentParser(
-        description="Evaluate all trained models in an experiment folder (weighted metrics, like training script).",
+        description="Evaluate all trained models in an experiment folder (weighted metrics; supports HF and sklearn).",
     )
     p.add_argument("--experiment-dir", required=True, help="Path to experiment folder containing test.csv and models/")
     p.add_argument("--text-column", default="text", help="Text column name in test.csv")
@@ -277,8 +314,8 @@ def build_argparser():
         choices=["accuracy", "precision", "recall", "f1"],
         help="Metric used to select the best model (default: f1)",
     )
-    p.add_argument("--batch-size", type=int, default=32)
-    p.add_argument("--max-length", type=int, default=None, help="Override max sequence length for tokenization")
+    p.add_argument("--batch-size", type=int, default=32, help="Batch size for HF models (ignored for sklearn)")
+    p.add_argument("--max-length", type=int, default=None, help="Max sequence length for HF models (optional)")
     return p
 
 
