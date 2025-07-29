@@ -61,20 +61,29 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
             continue
 
         has_label_encoder = os.path.exists(os.path.join(path, "label_encoder.pkl"))
-        is_hf = os.path.exists(os.path.join(path, "config.json"))
-        is_sk = os.path.exists(os.path.join(path, "model.pkl")) and os.path.exists(
-            os.path.join(path, "vectorizer.pkl")
-        )
+        
+        framework: Optional[str] = None
+        meta_path = os.path.join(path, "metadata.json")
+        if os.path.exists(meta_path):
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                fw = str(meta.get("framework", "")).strip().lower()
+                if fw in {"hf", "transformers"}:
+                    framework = "hf"
+                elif fw in {"sk", "sklearn", "scikit-learn"}:
+                    framework = "sklearn"
+            except Exception as e:
+                logger.warning(f"Could not read metadata.json in {path}: {e}")
 
-        if has_label_encoder and is_hf:
-            found.append({"path": path, "framework": "hf", "name": name})
-        elif has_label_encoder and is_sk:
-            found.append({"path": path, "framework": "sklearn", "name": name})
+
+        
+        elif has_label_encoder:
+            found.append({"path": path, "framework": framework, "name": name})
         else:
             logger.warning(
                 f"Skipping {path} (missing required files: "
                 f"{'label_encoder.pkl ' if not has_label_encoder else ''}"
-                f"{'' if is_hf or is_sk else 'and neither HF nor sklearn artifacts detected'})"
             )
 
     if not found:
