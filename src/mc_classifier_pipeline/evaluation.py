@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 
-# Configure Logging 
+# Configure Logging
 def configure_logging():
     logging.basicConfig(
         level=logging.INFO,
@@ -22,7 +22,7 @@ def configure_logging():
 logger = logging.getLogger(__name__)
 
 
-# IO helpers 
+# IO helpers
 def load_test_data(
     experiment_dir: str,
     text_column: str,
@@ -62,9 +62,8 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
 
         has_label_encoder = os.path.exists(os.path.join(path, "label_encoder.pkl"))
         is_hf = os.path.exists(os.path.join(path, "config.json"))
-        is_sk = (
-            os.path.exists(os.path.join(path, "model.pkl"))
-            and os.path.exists(os.path.join(path, "vectorizer.pkl"))
+        is_sk = os.path.exists(os.path.join(path, "model.pkl")) and os.path.exists(
+            os.path.join(path, "vectorizer.pkl")
         )
 
         if has_label_encoder and is_hf:
@@ -84,7 +83,7 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
     return found
 
 
-# Predictions 
+# Predictions
 def predict_labels_hf(
     model_dir: str,
     texts: List[str],
@@ -130,7 +129,7 @@ def predict_labels_hf(
         enc = tokenizer(
             batch,
             truncation=True,
-            padding=True,           # dynamic padding per batch
+            padding=True,  # dynamic padding per batch
             max_length=max_length,
             return_tensors="pt",
         )
@@ -163,7 +162,7 @@ def predict_labels_sklearn(
     return pred_labels.tolist()
 
 
-# Metrics 
+# Metrics
 def compute_weighted_metrics(
     y_true: List[str],
     y_pred: List[str],
@@ -217,7 +216,7 @@ def evaluate_models(
                 y_pred = predict_labels_hf(
                     mdir,
                     texts,
-                    max_length=max_length,    # used if provided; otherwise per-model metadata/default
+                    max_length=max_length,  # used if provided; otherwise per-model metadata/default
                     batch_size=batch_size,
                 )
             elif framework == "sklearn":
@@ -274,9 +273,7 @@ def evaluate_models(
             "model_name": best_row.get("model_name") if best_row else None,
             "model_path": best_row.get("model_path") if best_row else None,
             "framework": best_row.get("framework") if best_row else None,
-            "metrics": {
-                k: best_row.get(k) for k in ("accuracy", "precision", "recall", "f1")
-            } if best_row else None,
+            "metrics": {k: best_row.get(k) for k in ("accuracy", "precision", "recall", "f1")} if best_row else None,
         },
         "metrics_per_model": per_model_metrics,
     }
@@ -300,7 +297,7 @@ def write_outputs(models_root: str, results: pd.DataFrame, summary: Dict):
     logger.info(f"Summary written: {summary_path}")
 
 
-# CLI 
+# CLI
 def build_argparser():
     p = argparse.ArgumentParser(
         description="Evaluate all trained models in an experiment folder (weighted metrics; supports HF and sklearn).",
