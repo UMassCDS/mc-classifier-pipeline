@@ -5,7 +5,6 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 
-import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
@@ -13,6 +12,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 # Configure Logging
 from .utils import configure_logging
+
 configure_logging()
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
             continue
 
         has_label_encoder = os.path.exists(os.path.join(path, "label_encoder.pkl"))
-        
+
         framework: Optional[str] = None
         meta_path = os.path.join(path, "metadata.json")
         if os.path.exists(meta_path):
@@ -71,14 +71,11 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
             except Exception as e:
                 logger.warning(f"Could not read metadata.json in {path}: {e}")
 
-
-        
         elif has_label_encoder:
             found.append({"path": path, "framework": framework, "name": name})
         else:
             logger.warning(
-                f"Skipping {path} (missing required files: "
-                f"{'label_encoder.pkl ' if not has_label_encoder else ''}"
+                f"Skipping {path} (missing required files: {'label_encoder.pkl ' if not has_label_encoder else ''}"
             )
 
     if not found:
@@ -88,6 +85,7 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
 
 
 # Predictions
+
 
 def predict_labels_hf(
     model_dir: str,
@@ -100,21 +98,22 @@ def predict_labels_hf(
     run batched inference on `texts`, and inverse-transform to string labels.
     """
     from .bert_recipe import BERTTextClassifier
+
     # Use BERTTextClassifier from bert_recipe for HF model predictions
     classifier = BERTTextClassifier.load_for_inference(model_path=model_dir)
     predictions = classifier.predict(texts=texts, return_probabilities=False)
     return predictions
-    
+
 
 def predict_labels_sklearn(
     model_dir: str,
     texts: List[str],
 ) -> List[str]:
     """Use SKNaiveBayesTextClassifier for sklearn predictions."""
-    from .sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module  
-    
-    classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)  
-    predictions = classifier.predict(texts=texts, return_probabilities=False)  
+    from .sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module
+
+    classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)
+    predictions = classifier.predict(texts=texts, return_probabilities=False)
     return predictions
 
 
