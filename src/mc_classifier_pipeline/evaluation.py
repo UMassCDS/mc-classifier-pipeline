@@ -1,6 +1,7 @@
 import os
 import json
 import argparse
+import gc
 import logging
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
@@ -8,6 +9,7 @@ from typing import List, Dict, Tuple, Optional
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from tqdm import tqdm
 
 
 # Configure Logging
@@ -55,9 +57,9 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
         if not os.path.isdir(path):
             continue
 
-        has_label_encoder = os.path.exists(os.path.join(path, "label_encoder.pkl"))
-
         framework: Optional[str] = None
+        
+        # First try to detect framework from metadata.json
         meta_path = os.path.join(path, "metadata.json")
         if os.path.exists(meta_path):
             try:
@@ -71,22 +73,30 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
             except Exception as e:
                 logger.warning(f"Could not read metadata.json in {path}: {e}")
 
-        elif has_label_encoder:
-            found.append({"path": path, "framework": framework, "name": name})
-        else:
-            logger.warning(
-                f"Skipping {path} (missing required files: {'label_encoder.pkl ' if not has_label_encoder else ''}"
-            )
+        # If framework not detected from metadata, try file-based detection
+        if not framework:
+            has_config = os.path.exists(os.path.join(path, "config.json"))
+            has_model_pkl = os.path.exists(os.path.join(path, "model.pkl"))
+            has_vectorizer = os.path.exists(os.path.join(path, "vectorizer.pkl"))
+            
+            if has_config:
+                framework = "hf"
+            elif has_model_pkl and has_vectorizer:
+                framework = "sklearn"
+            else:
+                logger.warning(f"Could not determine framework for {path}")
+                continue
+        
+        found.append({"path": path, "framework": framework, "name": name})
 
     if not found:
+
         raise RuntimeError(f"No valid model folders found under: {models_root}")
 
     return found
 
 
 # Predictions
-
-
 def predict_labels_hf(
     model_dir: str,
     texts: List[str],
@@ -164,7 +174,7 @@ def evaluate_models(
     per_model_metrics: Dict[str, Dict] = {}
 
     logger.info(f"Evaluating {len(model_dirs)} models with weighted metrics (framework-aware)")
-    for item in model_dirs:
+    for item in tqdm(model_dirs):
         mdir, framework, name = item["path"], item["framework"], item["name"]
         try:
             if framework == "hf":
@@ -204,6 +214,9 @@ def evaluate_models(
             }
             rows.append(row)
             per_model_metrics[name] = {"error": str(e), "framework": framework}
+            
+            # Clean up memory even after failures
+            _cleanup_memory()
 
     results = pd.DataFrame(rows)
 
