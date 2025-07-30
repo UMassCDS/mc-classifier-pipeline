@@ -9,6 +9,7 @@ from pathlib import Path
 import datetime as dt
 from unittest.mock import patch, mock_open
 
+# if someone has a better way to handle imports in tests, please let me know
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 from mc_classifier_pipeline import doc_retriever
 
