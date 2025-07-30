@@ -7,20 +7,20 @@ from collections import Counter
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple, Any
 
+
 import pandas as pd
-from dotenv import load_dotenv
 from label_studio_sdk.client import LabelStudio
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from . import utils
 
+
 # Configure logging
 utils.configure_logging()
 logger = logging.getLogger(__name__)
 
 # Configuration and constants
-load_dotenv()
 LABEL_STUDIO_HOST = os.getenv("LABEL_STUDIO_HOST")
 LABEL_STUDIO_TOKEN = os.getenv("LABEL_STUDIO_TOKEN")
 
@@ -455,9 +455,9 @@ def build_argument_parser(add_help: bool = True) -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
             Examples:
-            python -m mc_classifier_pipeline.preprocessing --project-id 1 --train-ratio 0.8 --output-dir experiments
-            python -m mc_classifier_pipeline.preprocessing --project-id 1 --train-ratio 0.7 --target-label \"Solutions Journalism\" --output-dir experiments
-            python -m mc_classifier_pipeline.preprocessing --project-id 1 --train-ratio 0.8 --output-dir experiments --experiment-name climate_sentiment_v1 --random-seed 123
+            python -m mc_classifier_pipeline.preprocessing --project-id 10 --train-ratio 0.8 --output-dir experiments
+            python -m mc_classifier_pipeline.preprocessing --project-id 10 --train-ratio 0.7 --target-label \"Solutions Journalism\" --output-dir experiments
+            python -m mc_classifier_pipeline.preprocessing --project-id 10 --train-ratio 0.8 --output-dir experiments --experiment-name climate_sentiment_v1 --random-seed 123
         """,
         add_help=add_help,
     )
@@ -512,7 +512,6 @@ def validate_args(args: argparse.Namespace) -> None:
 
     if args.project_id <= 0:
         raise ValueError(f"Project ID must be positive, got {args.project_id}")
-
 
 
 def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> None:
@@ -576,4 +575,10 @@ def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> Non
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    # Re-load env vars in case running as script
+    LABEL_STUDIO_HOST = os.getenv("LABEL_STUDIO_HOST")
+    LABEL_STUDIO_TOKEN = os.getenv("LABEL_STUDIO_TOKEN")
     run_preprocessing_pipeline()
