@@ -112,6 +112,10 @@ def predict_labels_hf(
     # Use BERTTextClassifier from bert_recipe for HF model predictions
     classifier = BERTTextClassifier.load_for_inference(model_path=model_dir)
     predictions = classifier.predict(texts=texts, return_probabilities=False)
+    
+    # Explicitly delete the classifier to free memory
+    del classifier
+    
     return predictions
 
 
@@ -124,7 +128,30 @@ def predict_labels_sklearn(
 
     classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)
     predictions = classifier.predict(texts=texts, return_probabilities=False)
+    
+    # Explicitly delete the classifier to free memory
+    del classifier
+    
     return predictions
+
+
+def _cleanup_memory():
+    """Clean up memory after model evaluation"""
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Clear GPU memory if available
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+    except ImportError:
+        # torch not available, skip GPU cleanup
+        pass
+
+
 
 
 # Metrics
@@ -199,6 +226,9 @@ def evaluate_models(
             }
             rows.append(row)
             per_model_metrics[name] = row.copy()
+            
+            # Clean up memory after successful evaluation
+            _cleanup_memory()
 
         except Exception as e:
             logger.exception(f"Failed evaluating {mdir}: {e}")
