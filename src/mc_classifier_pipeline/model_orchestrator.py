@@ -18,7 +18,82 @@ from .evaluation import evaluate_models, write_outputs
 from .utils import configure_logging  
 
 
+def parse_experiment_metadata(experiment_dir: Path) -> Dict[str, Any]:
+    """
+    Parse experiment metadata JSON and extract key variables.
+    
+    Args:
+        experiment_dir: Path to the experiment directory containing metadata.json
+        
+    Returns:
+        dict: Parsed experiment variables
+    """
+    experiment_path = experiment_dir
+    metadata_file = experiment_path / "metadata.json"
 
+    if not metadata_file.exists():
+        raise FileNotFoundError(f"Metadata file not found: {metadata_file}")
+    
+    # Load JSON metadata
+    with open(metadata_file, 'r') as f:
+        metadata = json.load(f)
+        # Handle target_label - infer from annotation config if null
+        target_label = metadata['classification_task']['target_label']
+        if target_label is None:
+            # Try to infer from annotation config - look for the single Choices element
+            annotation_config = metadata['label_studio']['annotation_config']
+            import re
+            choices_matches = re.findall(r'<Choices[^>]*name="([^"]*)"', annotation_config)
+            if choices_matches:
+                target_label = choices_matches[0]  # Use the first (and likely only) Choices name
+            else:
+                raise ValueError("target_label is null and cannot infer label column from annotation config")
+    
+    # Extract experiment variables
+    experiment_vars = {
+        # Experiment info
+        'created_at': metadata['experiment']['created_at'],
+        'script_version': metadata['experiment']['script_version'],
+        'data_seed': metadata['experiment']['data_seed'],
+        
+        # Data split info
+        'train_ratio': metadata['data_split']['train_ratio'],
+        'test_ratio': metadata['data_split']['test_ratio'],
+        'train_samples': metadata['data_split']['train_samples'],
+        'test_samples': metadata['data_split']['test_samples'],
+        'total_samples': metadata['data_split']['total_samples'],
+        'stratified': metadata['data_split']['stratified'],
+        
+        # Classification task info
+        'target_label': metadata['classification_task']['target_label'],
+        'task_type': metadata['classification_task']['task_type'],
+        'train_label_distribution': metadata['classification_task']['train_label_distribution'],
+        'test_label_distribution': metadata['classification_task']['test_label_distribution'],
+        'unique_labels': metadata['classification_task']['unique_labels'],
+        
+        # Label Studio info
+        'project_id': metadata['label_studio']['project_id'],
+        'project_title': metadata['label_studio']['project_title'],
+        'project_description': metadata['label_studio']['project_description'],
+        'data_downloaded_at': metadata['label_studio']['data_downloaded_at'],
+        'task_id_range': metadata['label_studio']['task_id_range'],
+        
+        # Command line args
+        'original_project_id': metadata['command_line_args']['project_id'],
+        'original_train_ratio': metadata['command_line_args']['train_ratio'],
+        'original_target_label': metadata['command_line_args']['target_label'],
+        'output_dir': metadata['command_line_args']['output_dir'],
+        'experiment_name': metadata['command_line_args']['experiment_name'],
+        'random_seed': metadata['command_line_args']['random_seed'],
+        
+        # Derived paths
+        'experiment_dir': str(experiment_path),
+        'train_csv_path': str(experiment_path / "train.csv"),
+        'test_csv_path': str(experiment_path / "test.csv"),
+        'metadata_path': str(metadata_file)
+    }
+
+    return experiment_vars
 
 # Recipes registry 
 """
@@ -35,6 +110,7 @@ MODEL_REGISTRY = {
         "slug": "bert",
         "framework": "hf",
     },
+
     "SklearnMultinomialNaiveBayes": {
         "constructor": SKNaiveBayesTextClassifier,
         "constructor_keys": set(),                    # sklearn constructor takes no args
@@ -42,6 +118,7 @@ MODEL_REGISTRY = {
         "framework": "sklearn",
     },
 }
+
 
 
 # Helper: parse recipes 
@@ -102,7 +179,7 @@ def split_params(model_type: str, model_params: Dict[str, Any]) -> Tuple[Dict[st
 
 def train_single_model(
     model_type: str,
-    project_dir: Path,
+    experiment_dir: Path,
     models_root: Path,
     text_column: str,
     label_column: str,
@@ -127,7 +204,7 @@ def train_single_model(
 
     # Call its train method
     metadata = clf.train(
-        project_folder=str(project_dir),
+        project_folder=str(experiment_dir),
         save_path=str(out_dir),
         text_column=text_column,
         label_column=label_column,
@@ -178,7 +255,7 @@ def build_argparser() -> argparse.ArgumentParser:
         description="Train multiple model recipes on the same dataset split, then evaluate them."
     )
     p.add_argument(
-        "--project-dir",
+        "--experiment-dir",
         required=True,
         help="Path to a folder containing train.csv and test.csv (e.g., experiments/project_42/20250728_113000)",
     )
@@ -205,16 +282,17 @@ def build_argparser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_argparser().parse_args()
 
-    project_dir = Path(args.project_dir).resolve()
-    models_root = project_dir / "models"
+    experiment_dir = Path(args.experiment_dir).resolve()
+    experiment_vars = parse_experiment_metadata(experiment_dir)
+    models_root = experiment_dir / "models"
     log_file = models_root / "training.log"
     #configure_logging(log_file)
 
     # Validate input files
-    train_csv = project_dir / "train.csv"
-    test_csv = project_dir / "test.csv"
+    train_csv = experiment_dir / "train.csv"
+    test_csv = experiment_dir / "test.csv"
     if not train_csv.exists() or not test_csv.exists():
-        raise FileNotFoundError("train.csv and/or test.csv not found in project-dir")
+        raise FileNotFoundError("train.csv and/or test.csv not found in experiment-dir")
 
     # Load recipes
     recipes = load_recipes(args.recipes, args.recipes_file)
@@ -230,7 +308,7 @@ def main() -> None:
 
         out_dir = train_single_model(
             model_type=model_type,
-            project_dir=project_dir,
+            experiment_dir=experiment_dir,
             models_root=models_root,
             text_column=args.text_column,
             label_column=args.label_column,
@@ -239,7 +317,7 @@ def main() -> None:
         trained_dirs.append(out_dir)
 
     run_evaluation(
-        project_dir=project_dir,
+        experiment_dir=experiment_dir,
         best_metric=args.best_metric,
         text_column=args.text_column,
         label_column=args.label_column,
