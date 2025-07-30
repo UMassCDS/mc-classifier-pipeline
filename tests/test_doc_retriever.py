@@ -14,7 +14,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from mc_classifier_pipeline import doc_retriever
 
 
-
 class DummySearchApi:
     def __init__(self, stories=None, story_data=None):
         self.stories = stories or []
