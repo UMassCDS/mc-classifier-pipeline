@@ -136,6 +136,7 @@ class SKNaiveBayesTextClassifier:
 
         # Create metadata
         self.metadata = {
+            "framework": "naive-bayes",
             "model_type": "sklearn-naive-bayes",
             "num_labels": len(self.label_encoder.classes_),
             "label_classes": self.label_encoder.classes_.tolist(),
