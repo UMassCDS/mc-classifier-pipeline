@@ -514,7 +514,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError(f"Project ID must be positive, got {args.project_id}")
 
 
-def main(args: Optional[argparse.Namespace] = None) -> None:
+
+def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> None:
     """
     Main function to execute the preprocessing pipeline.
 
@@ -575,4 +576,4 @@ def main(args: Optional[argparse.Namespace] = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_preprocessing_pipeline()
