@@ -22,7 +22,6 @@ classifiers = [
 
 # All the dependencies needed for running your module go here
 dependencies = [
-    "dvc>=2.42.0",
     "label-studio-sdk>1.0",
     "mediacloud",
     "numpy",
