@@ -18,8 +18,8 @@ Use these steps for setting up a development environment to install and work wit
 2) Activate your virtual environment.
 
 3) Install the package.
-	- If you want to just use the scripts and package features, install the project by running `pip install .` from the root directory.
-	<!-- - If you will be changing the code and running tests, you can install it by running `pip install -e .[test,dev]`. The `-e/--editable` flag means local changes to the project code will always be available with the package is imported. You wouldn't use this in production, but it's useful for development.
+  - If you want to just use the scripts and package features, install the project by running `pip install .` from the root directory.
+  <!-- - If you will be changing the code and running tests, you can install it by running `pip install -e .[test,dev]`. The `-e/--editable` flag means local changes to the project code will always be available with the package is imported. You wouldn't use this in production, but it's useful for development.
   - Note for zsh users: use `pip install -e .'[test,dev]'` -->
 
 ### Environment Variables
@@ -85,34 +85,35 @@ In cases when its important that your software work exactly the same on every op
 So what does each file in this repository do?
 ```
 .
-├── src
-    ├── mc_classifier_pipeline     # The python package root - Any code you'd like to be able to import lives here
-        ├── __init__.py     # Indicates that this directory is a python package, you can put special import instructions here
-        └── utils.py    # A module that handles logging and other internals
-├── CHANGELOG.md    # Versioning information
-├── dag_workflow.png    # An image that is linked to in this README
-├── data    # Data files which may or may not be tracked in Git, but we reserve a folder for them so that users can all have the same relative paths
-├── docs     # Sphinx auto-documentation uses this folder to run its scripts and store documentation
-    ├── _build     # Contains the Sphinx doctree and html documentation source code
-        ├── doctrees     # A folder with doctree construction information
-        └── html   # A folder that contains the html code for all automatically created documentation
-    ├── _static     # A folder that can contain static code
-    ├── _templates    # A folder that can contain Sphinx templates
-    ├── conf.py    # A function that configures Sphinx according to user specifications  
-    ├── index.rst    # A directory that users can input new functions into for auto-documentation
-    ├── make.bat    # A function that runs auto-documentation
-    └── Makefile    # A function that creates html documentation based on functions in the index.rst file
-├── dvc.lock    # Data Version Control uses this file to compare experiment versions. It's tracked in Git, but don't edit it manually.
-├── dvc.yaml    # Create the Data Version Control pipeline stages here
-├── notebooks
-├── pyproject.toml    # Project metadata, dependencies and build tools are declared for proper installation and packaging.
-├── README.md     # You're reading it now!
-└── tests
-├── .dvc    # The configuration file for Data Version Control
-├── .github
-    └── workflows/python_package.yml    # Github Workflow file, configures running tests on Github every time a pull request to the main branch is made
-├── .gitignore   # Lists files that should not be included in version control, created from Github's template .gitignore for Python.
-└── .dvcignore    # Lists files that Data Version Control should skip when checking for changes in stage dependencies.
+├── src/                                 # Source code root
+│   └── mc_classifier_pipeline/           # Main Python package
+│       ├── __init__.py                   # Package marker
+│       ├── doc_retriever.py              # Retrieves documents from Media Cloud
+│       ├── label_studio_uploader.py      # Uploads data to Label Studio
+│       ├── run_pipeline.py               # Main pipeline runner script
+│       └── utils.py                      # Utility functions (logging, helpers, etc.)
+├── CHANGELOG.md                         # Project version history and changes
+├── CONTRIBUTIONS.md                     # Contribution guidelines
+├── Dockerfile                           # Docker build instructions for containerization
+├── docker-compose.yml                   # Multi-container Docker orchestration
+├── LICENSE.md                           # License for project usage
+├── pyproject.toml                       # Project metadata, dependencies, and build tools
+├── README.md                            # Project overview and documentation (this file)
+├── data/                                # Data files (not tracked by git)
+│   ├── SoJosources.csv                  # Example/source data file
+├── docs/                                # Sphinx documentation source
+│   ├── conf.py                          # Sphinx configuration
+│   ├── index.rst                        # Sphinx documentation index
+│   ├── make.bat                         # Windows build script for docs
+│   └── Makefile                         # Unix build script for docs
+├── notebooks/                           # Jupyter notebooks for exploration
+│   └── exploration.ipynb                # Example exploratory notebook
+├── tests/                               # Unit and integration tests
+│   └── test_dummy.py                    # Example test file
+├── .github/                             # GitHub configuration
+│   └── workflows/
+│       └── python_package.yml           # GitHub Actions workflow for CI/testing
+├── .gitignore                           # Files and folders ignored by git
 ```
 
 
@@ -204,34 +205,9 @@ DEBUG : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.word_count : Tokenizing
 ## Data Dependencies Tools
 [Build automation tools](https://en.wikipedia.org/wiki/Build_automation) like [Make](https://en.wikipedia.org/wiki/Make_(software)) have been used to resolve dependencies and compile software since the 1970s. Build automation can also be used in data science and machine learning workflows for [many of the same reasons](https://en.wikipedia.org/wiki/Build_automation#Advantages), like eliminating redundant tasks, maintaining history and improved quality and consistency through automating processes. Using a build tool can also be a documentation and communication tool, since it declares the most common ways to run code and reproduce experiments.
 
-In the Machine Learning Operations (MLOps) community these automation tools are often called [task or workflow orchestration](https://www.datarevenue.com/en-blog/airflow-vs-luigi-vs-argo-vs-mlflow-vs-kubeflow). There are many options, such as [Airflow](https://airflow.apache.org/), [Luigi](https://github.com/spotify/luigi), [MLflow](https://mlflow.org/), [Kubeflow](https://www.kubeflow.org/) and [iterative.ai's DVC and CML](https://iterative.ai/), all with various additional features for versioning experiments, scheduling and visualizations, but at the core they are all built on the same dependency graph principle as the OG [Make](https://opensource.com/article/18/8/what-how-makefile).
+In the Machine Learning Operations (MLOps) community these automation tools are often called [task or workflow orchestration](https://www.datarevenue.com/en-blog/airflow-vs-luigi-vs-argo-vs-mlflow-vs-kubeflow). There are many options, such as [Airflow](https://airflow.apache.org/), [Luigi](https://github.com/spotify/luigi), [MLflow](https://mlflow.org/), [Kubeflow](https://www.kubeflow.org/), all with various additional features for versioning experiments, scheduling and visualizations, but at the core they are all built on the same dependency graph principle as the OG [Make](https://opensource.com/article/18/8/what-how-makefile).
 
-Some of these tools can take a lot of work to set up, so discuss the trade-offs with your team to decide what you'd like to use. In the early stages of a project, we recommend using something easy to set up, like [DVC](https://dvc.org/) or [Make](https://opensource.com/article/18/8/what-how-makefile).
-
-<!-- ### DVC Example
-In this repository, we have set up a pipeline using [DVC](https://dvc.org/), which has the added benefit of versioning data and experiments. DVC is especially easy to set up for Python projects, because it can be installed via pip in the project requirements and integrates with git. See [DVC Get Started documentation](https://dvc.org/doc/start) for instructions on setting up DVC in your own repository.
-
-The stages in our word count experiment pipeline are configured in `dvc.yaml`. As described in the previous section, this takes the `data/gutenberg` files as input and produces `data/gutenberg_counts.csv` as the final product. Since `data/gutenberg_counts.csv` should be generated whenever the data or scripts change, it is managed by DVC and ignored by git. You can re-run the pipeline steps by running `dvc repro`.
-```
-$ dvc repro
-Running stage 'count-words':
-> python mc_classifier_pipeline/corpus_counter_script.py data/gutenberg_counts.csv data/gutenberg/*.txt --case-insensitive
-INFO : 2022-05-23 11:18:42,813 : __main__ : Command line arguments: Namespace(csv='data/gutenberg_counts.csv', documents=['data/gutenberg/austen-emma.txt', 'data/gutenberg/austen-persuasion.txt', 'data/gutenberg/austen-sense.txt', 'data/gutenberg/bible-kjv.txt', 'data/gutenberg/blake-poems.txt', 'data/gutenberg/bryant-stories.txt', 'data/gutenberg/burgess-busterbrown.txt', 'data/gutenberg/carroll-alice.txt', 'data/gutenberg/chesterton-ball.txt', 'data/gutenberg/chesterton-brown.txt', 'data/gutenberg/chesterton-thursday.txt'], case_insensitive=True)
-...
-$ dvc repro
-Stage 'count-words' didn't change, skipping
-Data and pipelines are up to date.
-```
-
-
-You can see the stages in the DAG by running `dvc dag`, in our case it's just a single step called `count-words`:
-```
-$ dvc dag
-+-------------+
-| count-words |
-+-------------+
-```
- -->
+Some of these tools can take a lot of work to set up, so discuss the trade-offs with your team to decide what you'd like to use. In the early stages of a project, we recommend using something easy to set up, like [Make](https://opensource.com/article/18/8/what-how-makefile).
 ## A Note on Notebooks
 We have also included an example Jupyter notebook
 
