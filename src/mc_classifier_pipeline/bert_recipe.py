@@ -240,6 +240,7 @@ class BERTTextClassifier:
 
         # Create metadata
         self.metadata = {
+            "framework": "transformers",
             "model_name": self.model_name,
             "num_labels": num_labels,
             "label_classes": self.label_encoder.classes_.tolist(),
