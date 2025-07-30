@@ -129,3 +129,6 @@ dmypy.json
 .pyre/
 
 /testing_code_to_be_refactored
+
+# Data Generated for training
+experiments
