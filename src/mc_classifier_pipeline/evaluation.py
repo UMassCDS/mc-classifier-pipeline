@@ -48,6 +48,7 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
 
     Returns a list of dicts: [{"path": "<abs_path>", "framework": "hf"|"sklearn", "name": "<dir_name>"}]
     """
+    logger.info(f"Scanning for models in: {models_root}")
     if not os.path.isdir(models_root):
         raise FileNotFoundError(f"Models folder not found: {models_root}")
 
@@ -68,8 +69,10 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
                 fw = str(meta.get("framework", "")).strip().lower()
                 if fw in {"hf", "transformers"}:
                     framework = "hf"
+                    logger.debug(f"Detected HuggingFace model from metadata: {path}")
                 elif fw in {"sk", "sklearn", "scikit-learn"}:
                     framework = "sklearn"
+                    logger.debug(f"Detected sklearn model from metadata: {path}")
             except Exception as e:
                 logger.warning(f"Could not read metadata.json in {path}: {e}")
 
@@ -81,8 +84,10 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
             
             if has_config:
                 framework = "hf"
+                logger.debug(f"Detected HuggingFace model from config.json: {path}")
             elif has_model_pkl and has_vectorizer:
                 framework = "sklearn"
+                logger.debug(f"Detected sklearn model from model.pkl + vectorizer.pkl: {path}")
             else:
                 logger.warning(f"Could not determine framework for {path}")
                 continue
@@ -90,9 +95,10 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
         found.append({"path": path, "framework": framework, "name": name})
 
     if not found:
-
+        logger.error(f"No valid model folders found under: {models_root}")
         raise RuntimeError(f"No valid model folders found under: {models_root}")
 
+    logger.info(f"Found {len(found)} valid models: {[m['name'] for m in found]}")
     return found
 
 
@@ -109,12 +115,15 @@ def predict_labels_hf(
     """
     from .bert_recipe import BERTTextClassifier
 
+    logger.debug(f"Loading HuggingFace model from: {model_dir}")
     # Use BERTTextClassifier from bert_recipe for HF model predictions
     classifier = BERTTextClassifier.load_for_inference(model_path=model_dir)
+    logger.debug(f"Running predictions on {len(texts)} texts with batch_size={batch_size}")
     predictions = classifier.predict(texts=texts, return_probabilities=False)
     
     # Explicitly delete the classifier to free memory
     del classifier
+    logger.debug("HuggingFace model cleaned up from memory")
     
     return predictions
 
@@ -126,11 +135,14 @@ def predict_labels_sklearn(
     """Use SKNaiveBayesTextClassifier for sklearn predictions."""
     from .sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module
 
+    logger.debug(f"Loading sklearn model from: {model_dir}")
     classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)
+    logger.debug(f"Running sklearn predictions on {len(texts)} texts")
     predictions = classifier.predict(texts=texts, return_probabilities=False)
     
     # Explicitly delete the classifier to free memory
     del classifier
+    logger.debug("Sklearn model cleaned up from memory")
     
     return predictions
 
@@ -138,6 +150,7 @@ def predict_labels_sklearn(
 def _cleanup_memory():
     """Clean up memory after model evaluation"""
     
+    logger.debug("Starting memory cleanup...")
     # Force garbage collection
     gc.collect()
     
@@ -147,9 +160,12 @@ def _cleanup_memory():
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+            logger.debug("GPU memory cache cleared")
     except ImportError:
         # torch not available, skip GPU cleanup
-        pass
+        logger.debug("PyTorch not available, skipping GPU cleanup")
+    
+    logger.debug("Memory cleanup completed")
 
 
 
@@ -190,8 +206,10 @@ def evaluate_models(
     Evaluate all models under <experiment_dir>/models against test.csv using weighted metrics.
     Produces a leaderboard DataFrame and a summary dict.
     """
+    logger.info(f"Starting model evaluation for experiment: {experiment_dir}")
     models_root = os.path.join(experiment_dir, "models")
     test_df = load_test_data(experiment_dir, text_column, label_column)
+    logger.info(f"Loaded test data with {len(test_df)} samples")
     model_dirs = discover_model_dirs(models_root)
 
     texts = test_df[text_column].astype(str).tolist()
@@ -203,6 +221,7 @@ def evaluate_models(
     logger.info(f"Evaluating {len(model_dirs)} models with weighted metrics (framework-aware)")
     for item in tqdm(model_dirs):
         mdir, framework, name = item["path"], item["framework"], item["name"]
+        logger.info(f"Evaluating model: {name} (framework: {framework})")
         try:
             if framework == "hf":
                 y_pred = predict_labels_hf(
@@ -217,6 +236,7 @@ def evaluate_models(
                 raise RuntimeError(f"Unknown framework tag for {mdir}: {framework}")
 
             metrics = compute_weighted_metrics(y_true, y_pred)
+            logger.info(f"Model {name} evaluation completed - F1: {metrics['f1']:.4f}, Accuracy: {metrics['accuracy']:.4f}")
 
             row = {
                 "model_name": name,
@@ -232,6 +252,7 @@ def evaluate_models(
 
         except Exception as e:
             logger.exception(f"Failed evaluating {mdir}: {e}")
+            logger.error(f"Model {name} evaluation failed with error: {str(e)}")
             row = {
                 "model_name": name,
                 "model_path": mdir,
@@ -248,6 +269,7 @@ def evaluate_models(
             # Clean up memory even after failures
             _cleanup_memory()
 
+    logger.info("All model evaluations completed")
     results = pd.DataFrame(rows)
 
     # Sort leaderboard by chosen metric (descending)
@@ -255,10 +277,15 @@ def evaluate_models(
     if best_metric not in valid_metrics:
         raise ValueError(f"--best-metric must be one of: {', '.join(valid_metrics)}")
 
+    logger.info(f"Sorting results by {best_metric} metric")
     results = results.sort_values(by=best_metric, ascending=False, na_position="last").reset_index(drop=True)
 
     # Determine best model (first valid row)
     best_row = results.iloc[0].to_dict() if not results.empty else None
+    if best_row:
+        logger.info(f"Best model: {best_row['model_name']} ({best_row['framework']}) - {best_metric}: {best_row[best_metric]:.4f}")
+    else:
+        logger.warning("No valid models found in evaluation results")
     summary = {
         "evaluated_at": datetime.now().isoformat(),
         "experiment_dir": experiment_dir,
@@ -276,6 +303,7 @@ def evaluate_models(
         "metrics_per_model": per_model_metrics,
     }
 
+    logger.info(f"Evaluation summary created for {len(results)} models")
     return results, summary
 
 
@@ -316,7 +344,12 @@ def build_argparser():
 
 def main():
     configure_logging()
+    logger.info("Starting evaluation script")
     args = build_argparser().parse_args()
+    
+    logger.info(f"Evaluation parameters - experiment_dir: {args.experiment_dir}, "
+                f"text_column: {args.text_column}, label_column: {args.label_column}, "
+                f"best_metric: {args.best_metric}, batch_size: {args.batch_size}")
 
     results, summary = evaluate_models(
         experiment_dir=args.experiment_dir,
@@ -329,6 +362,7 @@ def main():
 
     models_root = os.path.join(args.experiment_dir, "models")
     write_outputs(models_root, results, summary)
+    logger.info("Evaluation script completed successfully")
 
 
 if __name__ == "__main__":
