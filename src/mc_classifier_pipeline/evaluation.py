@@ -59,7 +59,7 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
             continue
 
         framework: Optional[str] = None
-        
+
         # First try to detect framework from metadata.json
         meta_path = os.path.join(path, "metadata.json")
         if os.path.exists(meta_path):
@@ -81,7 +81,7 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
             has_config = os.path.exists(os.path.join(path, "config.json"))
             has_model_pkl = os.path.exists(os.path.join(path, "model.pkl"))
             has_vectorizer = os.path.exists(os.path.join(path, "vectorizer.pkl"))
-            
+
             if has_config:
                 framework = "hf"
                 logger.debug(f"Detected HuggingFace model from config.json: {path}")
@@ -91,7 +91,7 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
             else:
                 logger.warning(f"Could not determine framework for {path}")
                 continue
-        
+
         found.append({"path": path, "framework": framework, "name": name})
 
     if not found:
@@ -120,11 +120,11 @@ def predict_labels_hf(
     classifier = BERTTextClassifier.load_for_inference(model_path=model_dir)
     logger.debug(f"Running predictions on {len(texts)} texts with batch_size={batch_size}")
     predictions = classifier.predict(texts=texts, return_probabilities=False)
-    
+
     # Explicitly delete the classifier to free memory
     del classifier
     logger.debug("HuggingFace model cleaned up from memory")
-    
+
     return predictions
 
 
@@ -139,24 +139,25 @@ def predict_labels_sklearn(
     classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)
     logger.debug(f"Running sklearn predictions on {len(texts)} texts")
     predictions = classifier.predict(texts=texts, return_probabilities=False)
-    
+
     # Explicitly delete the classifier to free memory
     del classifier
     logger.debug("Sklearn model cleaned up from memory")
-    
+
     return predictions
 
 
 def _cleanup_memory():
     """Clean up memory after model evaluation"""
-    
+
     logger.debug("Starting memory cleanup...")
     # Force garbage collection
     gc.collect()
-    
+
     # Clear GPU memory if available
     try:
         import torch
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
@@ -164,10 +165,8 @@ def _cleanup_memory():
     except ImportError:
         # torch not available, skip GPU cleanup
         logger.debug("PyTorch not available, skipping GPU cleanup")
-    
+
     logger.debug("Memory cleanup completed")
-
-
 
 
 # Metrics
@@ -236,7 +235,9 @@ def evaluate_models(
                 raise RuntimeError(f"Unknown framework tag for {mdir}: {framework}")
 
             metrics = compute_weighted_metrics(y_true, y_pred)
-            logger.info(f"Model {name} evaluation completed - F1: {metrics['f1']:.4f}, Accuracy: {metrics['accuracy']:.4f}")
+            logger.info(
+                f"Model {name} evaluation completed - F1: {metrics['f1']:.4f}, Accuracy: {metrics['accuracy']:.4f}"
+            )
 
             row = {
                 "model_name": name,
@@ -246,7 +247,7 @@ def evaluate_models(
             }
             rows.append(row)
             per_model_metrics[name] = row.copy()
-            
+
             # Clean up memory after successful evaluation
             _cleanup_memory()
 
@@ -265,7 +266,7 @@ def evaluate_models(
             }
             rows.append(row)
             per_model_metrics[name] = {"error": str(e), "framework": framework}
-            
+
             # Clean up memory even after failures
             _cleanup_memory()
 
@@ -283,7 +284,9 @@ def evaluate_models(
     # Determine best model (first valid row)
     best_row = results.iloc[0].to_dict() if not results.empty else None
     if best_row:
-        logger.info(f"Best model: {best_row['model_name']} ({best_row['framework']}) - {best_metric}: {best_row[best_metric]:.4f}")
+        logger.info(
+            f"Best model: {best_row['model_name']} ({best_row['framework']}) - {best_metric}: {best_row[best_metric]:.4f}"
+        )
     else:
         logger.warning("No valid models found in evaluation results")
     summary = {
@@ -346,10 +349,12 @@ def main():
     configure_logging()
     logger.info("Starting evaluation script")
     args = build_argparser().parse_args()
-    
-    logger.info(f"Evaluation parameters - experiment_dir: {args.experiment_dir}, "
-                f"text_column: {args.text_column}, label_column: {args.label_column}, "
-                f"best_metric: {args.best_metric}, batch_size: {args.batch_size}")
+
+    logger.info(
+        f"Evaluation parameters - experiment_dir: {args.experiment_dir}, "
+        f"text_column: {args.text_column}, label_column: {args.label_column}, "
+        f"best_metric: {args.best_metric}, batch_size: {args.batch_size}"
+    )
 
     results, summary = evaluate_models(
         experiment_dir=args.experiment_dir,
