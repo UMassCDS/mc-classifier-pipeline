@@ -207,8 +207,8 @@ class BERTTextClassifier:
             metric_for_best_model=default_hyperparams["metric_for_best_model"],
             greater_is_better=default_hyperparams["greater_is_better"],
             save_total_limit=default_hyperparams["save_total_limit"],
-            report_to=[],  
-            disable_tqdm=False
+            report_to=[],
+            disable_tqdm=False,
         )
 
         # Initialize trainer
