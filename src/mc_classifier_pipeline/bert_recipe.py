@@ -190,7 +190,7 @@ class BERTTextClassifier:
             train_df, test_df, text_column, label_column, default_hyperparams["max_length"]
         )
 
-        # Set up training arguments with explicit report_to=[] to disable all integrations
+        # Set up training arguments
         self.training_args = TrainingArguments(
             output_dir=save_path,
             learning_rate=default_hyperparams["learning_rate"],
@@ -207,8 +207,8 @@ class BERTTextClassifier:
             metric_for_best_model=default_hyperparams["metric_for_best_model"],
             greater_is_better=default_hyperparams["greater_is_better"],
             save_total_limit=default_hyperparams["save_total_limit"],
-            report_to=[],  # Explicitly disable all reporting integrations (MLflow, wandb, tensorboard, etc.)
-            disable_tqdm=False,  # Keep progress bars
+            report_to=[],  
+            disable_tqdm=False
         )
 
         # Initialize trainer
