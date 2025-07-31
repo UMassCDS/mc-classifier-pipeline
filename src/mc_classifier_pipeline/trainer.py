@@ -145,17 +145,57 @@ def train_all_models(experiment_dir, model_configs, text_column, label_column):
     models_root = experiment_dir / "models"
     models_root.mkdir(parents=True, exist_ok=True)
 
+    # Create training summary log
+    training_log = {
+        "started_at": datetime.now().isoformat(),
+        "experiment_dir": str(experiment_dir),
+        "models_trained": [],
+        "total_models": len(model_configs)
+    }
+
     trained_dirs: List[Path] = []
-    for config in model_configs:
-        out_dir = train_model_from_config(
-            model_config=config,
-            experiment_dir=experiment_dir,
-            models_root=models_root,
-            text_column=text_column,
-            label_column=label_column,
-        )
-        trained_dirs.append(out_dir)
+    for i, config in enumerate(model_configs):
+        print(f"\n[{i+1}/{len(model_configs)}] Starting training...")
+        start_time = datetime.now()
+        
+        try:
+            out_dir = train_model_from_config(
+                model_config=config,
+                experiment_dir=experiment_dir,
+                models_root=models_root,
+                text_column=text_column,
+                label_column=label_column,
+            )
+            trained_dirs.append(out_dir)
+            
+            # Log successful training
+            training_log["models_trained"].append({
+                "config_name": config.get("name", "unnamed"),
+                "model_type": config["model_type"],
+                "output_dir": str(out_dir),
+                "status": "success",
+                "duration_seconds": (datetime.now() - start_time).total_seconds()
+            })
+            
+        except Exception as e:
+            print(f"  ✗ Failed: {str(e)}")
+            # Log failed training
+            training_log["models_trained"].append({
+                "config_name": config.get("name", "unnamed"),
+                "model_type": config["model_type"],
+                "status": "failed",
+                "error": str(e),
+                "duration_seconds": (datetime.now() - start_time).total_seconds()
+            })
     
+    # Save training summary
+    training_log["completed_at"] = datetime.now().isoformat()
+    training_log["total_duration_seconds"] = sum(m.get("duration_seconds", 0) for m in training_log["models_trained"])
+    
+    with open(models_root / "training_summary.json", "w") as f:
+        json.dump(training_log, f, indent=2)
+    
+    print(f"\nTraining complete! Summary saved to {models_root / 'training_summary.json'}")
     return trained_dirs
 
 
