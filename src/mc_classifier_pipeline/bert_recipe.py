@@ -68,6 +68,8 @@ class BERTTextClassifier:
         self.label_encoder = LabelEncoder()
         self.training_args = None
         self.metadata = {}
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        logger.info(f"Using device: {self.device}")
 
     def load_data(
         self, project_folder: str, text_column: str = "text", label_column: str = "label"
@@ -97,11 +99,15 @@ class BERTTextClassifier:
         logger.info(f"Loading tokenizer and model: {self.model_name}")
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name, num_labels=num_labels)
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            self.model_name, num_labels=num_labels, problem_type="single_label_classification"
+        )
 
         # Add padding token if it doesn't exist
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        self.model.to(self.device)
 
     def prepare_datasets(
         self,
@@ -320,6 +326,8 @@ class BERTTextClassifier:
                 return_tensors="pt",
             )
 
+            encodings = {k: v.to(self.device) for k, v in encodings.items()}
+
             # Make predictions
             with torch.no_grad():
                 outputs = self.model(**encodings)
@@ -346,23 +354,23 @@ class BERTTextClassifier:
         return self.metadata
 
 
-# if __name__ == "__main__":
-#     classifier = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased")
-#     metadata = classifier.train(
-#         project_folder="data",
-#         save_path="models/distilbert-base-uncased",
-#         text_column="text",
-#         label_column="label",
-#     )
-#     print("Metadata: ", metadata)
+if __name__ == "__main__":
+    classifier = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased")
+    metadata = classifier.train(
+        project_folder="data",
+        save_path="models/distilbert-base-uncased",
+        text_column="text",
+        label_column="label",
+    )
+    print("Metadata: ", metadata)
 
-#     classifier = BERTTextClassifier.load_for_inference(model_path="models/distilbert-base-uncased")
-#     predictions = classifier.predict(
-#         texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
-#     )
-#     print(predictions) # (array(['negative'], dtype=object), array([[0.7060923, 0.2939077]], dtype=float32))
+    classifier = BERTTextClassifier.load_for_inference(model_path="models/distilbert-base-uncased")
+    predictions = classifier.predict(
+        texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
+    )
+    print(predictions)  # (array(['negative'], dtype=object), array([[0.7060923, 0.2939077]], dtype=float32))
 
-#     label = classifier.predict(
-#         texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=False
-#     )
-#     print(label) # ['negative']
+    label = classifier.predict(
+        texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=False
+    )
+    print(label)  # ['negative']
