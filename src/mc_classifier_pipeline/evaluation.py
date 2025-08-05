@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 
 # Configure Logging
-from .utils import configure_logging
+from mc_classifier_pipeline.utils import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -346,7 +346,6 @@ def build_argparser():
 
 
 def main():
-    configure_logging()
     logger.info("Starting evaluation script")
     args = build_argparser().parse_args()
 
