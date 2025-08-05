@@ -2,7 +2,7 @@
 
 __version__ = "0.0.1"
 
-from . import (
+from mc_classifier_pipeline import (
     bert_recipe,
     doc_retriever,
     evaluation,

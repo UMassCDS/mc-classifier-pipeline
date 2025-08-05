@@ -13,7 +13,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from tqdm import tqdm
 
-from . import utils
+from mc_classifier_pipeline import utils
 
 # Configure logging
 utils.configure_logging()

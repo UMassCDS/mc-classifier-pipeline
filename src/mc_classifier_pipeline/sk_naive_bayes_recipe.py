@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.preprocessing import LabelEncoder
 import joblib
 
-from .utils import configure_logging  # for local running
+from mc_classifier_pipeline.utils import configure_logging
 
 # Set up logging
 configure_logging()
