@@ -18,3 +18,4 @@ You should also add project tags for each release in Github, see [Managing relea
 - Add `bert_binary_recipe.py` for BERT-based text classification (training and inference) with HuggingFace Transformers.
 - Add `evaluation.py` for evaluating multiple models and generating metrics summary with leaderboard
 - Add `trainer.py` for training multiple model recipes from configuration files
+
