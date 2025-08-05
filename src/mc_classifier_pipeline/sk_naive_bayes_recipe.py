@@ -175,7 +175,7 @@ class SKNaiveBayesTextClassifier:
         self.best_params = self.study.best_params
         best_score = self.study.best_value
 
-        logger.info(f"Optimization completed!")
+        logger.info("Optimization completed!")
         logger.info(f"Best score: {best_score:.4f}")
         logger.info(f"Best parameters: {self.best_params}")
 
