@@ -27,6 +27,7 @@ dependencies = [
     "label-studio-sdk>1.0",
     "mediacloud",
     "numpy",
+    "optuna",
     "pandas",
     "python-dotenv",
     "scikit-learn",
