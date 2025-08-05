@@ -6,9 +6,9 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .bert_recipe import BERTTextClassifier
-from .sk_naive_bayes_recipe import SKNaiveBayesTextClassifier
-from .utils import configure_logging
+from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
+from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier
+from mc_classifier_pipeline.utils import configure_logging
 
 # Set up logging
 configure_logging()
@@ -18,6 +18,17 @@ logger = logging.getLogger(__name__)
 def build_trainer_parser(add_help=True):
     """
     Build the argument parser for the trainer.
+    
+    Example usage:
+        python -m src.mc_classifier_pipeline.trainer \
+            --experiment-dir experiments/project_42/20250728_113000 \
+            --models-config configs/quick_test.json
+        
+        # Train only specific models:
+        python -m src.mc_classifier_pipeline.trainer \
+            --experiment-dir experiments/project_42/20250728_113000 \
+            --models-config configs/quick_test.json \
+            --model-names fast_bert quick_nb
     """
 
     parser = argparse.ArgumentParser(
@@ -84,7 +95,6 @@ def load_models_config(config_file: str, selected_models: Optional[List[str]] = 
         raise FileNotFoundError(f"Config file not found: {config_file}")
     except json.JSONDecodeError as e:
         raise ValueError(f"Failed to parse JSON config file: {e}")
-    
 
     if "models" not in config:
         raise ValueError("Config file must have a 'models' key with list of model definitions")
@@ -164,10 +174,7 @@ def train_model_from_config(
 
 
 def train_all_models(
-    experiment_dir: Path, 
-    model_configs: List[Dict[str, Any]], 
-    text_column: str, 
-    label_column: str
+    experiment_dir: Path, model_configs: List[Dict[str, Any]], text_column: str, label_column: str
 ) -> List[Path]:
     """Train all models from their configurations."""
     logger.info(f"Starting training for {len(model_configs)} models")
@@ -228,21 +235,23 @@ def train_all_models(
     # Count successes and failures
     successful_models = [m for m in training_log["models_trained"] if m.get("status") == "success"]
     failed_models = [m for m in training_log["models_trained"] if m.get("status") == "failed"]
-    
+
     with open(models_root / "training_summary.json", "w") as f:
         json.dump(training_log, f, indent=2)
 
     # Log training summary
-    logger.info(f"Training complete! {len(successful_models)} models succeeded, {len(failed_models)} models failed out of {len(model_configs)} total")
-    
+    logger.info(
+        f"Training complete! {len(successful_models)} models succeeded, {len(failed_models)} models failed out of {len(model_configs)} total"
+    )
+
     if failed_models:
         failed_names = [m["config_name"] for m in failed_models]
         logger.warning(f"Failed models: {', '.join(failed_names)}")
-    
+
     if successful_models:
         successful_names = [m["config_name"] for m in successful_models]
         logger.info(f"Successful models: {', '.join(successful_names)}")
-    
+
     logger.info(f"Training summary saved to {models_root / 'training_summary.json'}")
     return trained_dirs
 
