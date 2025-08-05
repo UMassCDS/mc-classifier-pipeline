@@ -1,6 +1,5 @@
 """Basic tests for the MC Classifier Pipeline package."""
 
-import pytest
 from mc_classifier_pipeline import __version__
 
 
