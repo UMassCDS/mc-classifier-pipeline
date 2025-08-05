@@ -275,16 +275,18 @@ def evaluate_models(
             _cleanup_memory()
 
     logger.info("All model evaluations completed")
-    logger.info(f"Evaluation summary: {success_count} models succeeded, {failure_count} models failed out of {len(model_dirs)} total")
-    
+    logger.info(
+        f"Evaluation summary: {success_count} models succeeded, {failure_count} models failed out of {len(model_dirs)} total"
+    )
+
     if failure_count > 0:
-        failed_models = [row['model_name'] for row in rows if 'error' in row]
+        failed_models = [row["model_name"] for row in rows if "error" in row]
         logger.warning(f"Failed models: {', '.join(failed_models)}")
-    
+
     if success_count > 0:
-        successful_models = [row['model_name'] for row in rows if 'error' not in row]
+        successful_models = [row["model_name"] for row in rows if "error" not in row]
         logger.info(f"Successful models: {', '.join(successful_models)}")
-    
+
     results = pd.DataFrame(rows)
 
     # Sort leaderboard by chosen metric (descending)
@@ -323,7 +325,9 @@ def evaluate_models(
         "metrics_per_model": per_model_metrics,
     }
 
-    logger.info(f"Evaluation summary created: {success_count} successful, {failure_count} failed, {len(results)} total models")
+    logger.info(
+        f"Evaluation summary created: {success_count} successful, {failure_count} failed, {len(results)} total models"
+    )
     return results, summary
 
 
