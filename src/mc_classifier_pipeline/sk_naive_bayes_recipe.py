@@ -25,7 +25,17 @@ logger = logging.getLogger(__name__)
 
 
 class SKNaiveBayesTextClassifier:
-    """Naive Bayes text classifier with training and inference capabilities (scikit-learn)"""
+    """
+    Naive Bayes text classifier with training, hyperparameter optimization, and inference capabilities using scikit-learn.
+
+    Attributes:
+        vectorizer (TfidfVectorizer): TF-IDF vectorizer for text data.
+        model (MultinomialNB): Naive Bayes model for classification.
+        label_encoder (LabelEncoder): Encoder for label values.
+        metadata (dict): Metadata about the trained model and process.
+        best_params (dict): Best hyperparameters found by Optuna.
+        study (optuna.Study): Optuna study object for optimization history.
+    """
 
     def __init__(self):
         self.vectorizer = TfidfVectorizer()
@@ -38,7 +48,17 @@ class SKNaiveBayesTextClassifier:
     def load_data(
         self, project_folder: str, text_column: str = "text", label_column: str = "label"
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Load train and test data from CSV files"""
+        """
+        Load training and test data from CSV files in the specified project folder.
+
+        Args:
+            project_folder (str): Path to the folder containing train.csv and test.csv.
+            text_column (str, optional): Name of the text column. Defaults to "text".
+            label_column (str, optional): Name of the label column. Defaults to "label".
+
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: Training and test DataFrames.
+        """
         train_path = os.path.join(project_folder, "train.csv")
         test_path = os.path.join(project_folder, "test.csv")
 
@@ -65,7 +85,18 @@ class SKNaiveBayesTextClassifier:
         text_column: str = "text",
         label_column: str = "label",
     ):
-        """Prepare training and test datasets"""
+        """
+        Prepare training and test datasets for the classifier.
+
+        Args:
+            train_df (pd.DataFrame): Training data.
+            test_df (pd.DataFrame): Test data.
+            text_column (str, optional): Name of the text column. Defaults to "text".
+            label_column (str, optional): Name of the label column. Defaults to "label".
+
+        Returns:
+            Tuple[Tuple[List[str], np.ndarray], Tuple[List[str], np.ndarray]]: Tokenized texts and encoded labels for train and test sets.
+        """
         # Encode labels
         all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
         self.label_encoder.fit(all_labels)
@@ -84,13 +115,33 @@ class SKNaiveBayesTextClassifier:
         return (train_texts, train_labels), (test_texts, test_labels)
 
     def compute_metrics(self, y_true, y_pred):
-        """Compute metrics for evaluation"""
+        """
+        Compute evaluation metrics (accuracy, precision, recall, F1) for predictions.
+
+        Args:
+            y_true (np.ndarray): True label values.
+            y_pred (np.ndarray): Predicted label values.
+
+        Returns:
+            dict: Dictionary of metric names and values.
+        """
         precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="weighted")
         accuracy = accuracy_score(y_true, y_pred)
         return {"accuracy": accuracy, "f1": f1, "precision": precision, "recall": recall}
 
     def objective(self, trial, train_texts, train_labels, cv_folds=3):
-        """Optuna objective function for hyperparameter optimization"""
+        """
+        Optuna objective function for hyperparameter optimization.
+
+        Args:
+            trial (optuna.trial.Trial): Optuna trial object.
+            train_texts (List[str]): List of training text samples.
+            train_labels (np.ndarray): Encoded training labels.
+            cv_folds (int, optional): Number of cross-validation folds. Defaults to 3.
+
+        Returns:
+            float: Mean cross-validated F1 score for the trial.
+        """
 
         # Suggest hyperparameters
         ngram_min = trial.suggest_int("ngram_min", 1, 2)
@@ -151,7 +202,21 @@ class SKNaiveBayesTextClassifier:
         sampler_seed: Optional[int] = 42,
         study_name: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Optimize hyperparameters using Optuna"""
+        """
+        Optimize hyperparameters for the Naive Bayes classifier using Optuna.
+
+        Args:
+            train_texts (List[str]): List of training text samples.
+            train_labels (np.ndarray): Encoded training labels.
+            n_trials (int, optional): Number of Optuna trials. Defaults to 100.
+            cv_folds (int, optional): Number of cross-validation folds. Defaults to 3.
+            direction (str, optional): Optimization direction. Defaults to "maximize".
+            sampler_seed (Optional[int], optional): Random seed for Optuna sampler. Defaults to 42.
+            study_name (Optional[str], optional): Name for the Optuna study. Defaults to None.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing best parameters, score, and study info.
+        """
 
         logger.info(f"Starting hyperparameter optimization with {n_trials} trials")
 
@@ -198,7 +263,22 @@ class SKNaiveBayesTextClassifier:
         optuna_trials: int = 100,
         cv_folds: int = 3,
     ):
-        """Train the Naive Bayes model with optional hyperparameter optimization"""
+        """
+        Train the Naive Bayes model, optionally using Optuna for hyperparameter optimization.
+
+        Args:
+            project_folder (str): Path to project folder with data.
+            save_path (str): Path to save trained model and artifacts.
+            text_column (str, optional): Name of the text column. Defaults to "text".
+            label_column (str, optional): Name of the label column. Defaults to "label".
+            hyperparams (Optional[Dict[str, Any]], optional): Hyperparameters for training. Defaults to None.
+            optimize_hyperparams (bool, optional): Whether to optimize hyperparameters. Defaults to False.
+            optuna_trials (int, optional): Number of Optuna trials. Defaults to 100.
+            cv_folds (int, optional): Number of cross-validation folds. Defaults to 3.
+
+        Returns:
+            dict: Metadata about the trained model and training process.
+        """
 
         # Load and prepare data
         train_df, test_df = self.load_data(project_folder, text_column, label_column)
@@ -305,7 +385,15 @@ class SKNaiveBayesTextClassifier:
 
     @classmethod
     def load_for_inference(cls, model_path: str):
-        """Load a trained model for inference"""
+        """
+        Load a trained Naive Bayes model and associated artifacts for inference.
+
+        Args:
+            model_path (str): Path to the trained model directory.
+
+        Returns:
+            SKNaiveBayesTextClassifier: Loaded classifier instance ready for inference.
+        """
         # Load metadata
         metadata_path = os.path.join(model_path, "metadata.json")
         if not os.path.exists(metadata_path):
@@ -332,7 +420,16 @@ class SKNaiveBayesTextClassifier:
         return classifier
 
     def predict(self, texts, return_probabilities: bool = False):
-        """Make predictions on new text data"""
+        """
+        Make predictions on new text data using the trained model.
+
+        Args:
+            texts (List[str]): List of input text samples.
+            return_probabilities (bool, optional): Whether to return class probabilities. Defaults to False.
+
+        Returns:
+            np.ndarray or Tuple[np.ndarray, np.ndarray]: Predicted labels, optionally with probabilities.
+        """
         if self.model is None or self.vectorizer is None:
             raise ValueError("Model not loaded. Use load_for_inference() first.")
 
@@ -347,11 +444,21 @@ class SKNaiveBayesTextClassifier:
             return predicted_labels
 
     def get_model_info(self):
-        """Get model information"""
+        """
+        Retrieve metadata information about the trained model.
+
+        Returns:
+            dict: Model metadata.
+        """
         return self.metadata
 
     def get_optimization_history(self):
-        """Get optimization history if available"""
+        """
+        Get Optuna optimization history if available.
+
+        Returns:
+            dict or None: Dictionary containing optimization history, or None if not available.
+        """
         if self.study is None:
             return None
 
