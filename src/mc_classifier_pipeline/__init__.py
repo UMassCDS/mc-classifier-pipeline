@@ -1,5 +1,17 @@
 """MC Classifier Pipeline package."""
 
-from . import doc_retriever
+from . import (
+    bert_recipe,
+    doc_retriever,
+    label_studio_uploader,
+    run_pipeline,
+    utils,
+)
 
-__all__ = ["doc_retriever"]
+__all__ = [
+    "bert_recipe",
+    "doc_retriever",
+    "label_studio_uploader",
+    "run_pipeline",
+    "utils",
+]

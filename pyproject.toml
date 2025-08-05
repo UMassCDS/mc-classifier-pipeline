@@ -22,14 +22,17 @@ classifiers = [
 
 # All the dependencies needed for running your module go here
 dependencies = [
-    "dvc>=2.42.0",
+    "accelerate",
+    "joblib",
     "label-studio-sdk>1.0",
     "mediacloud",
     "numpy",
     "pandas",
     "python-dotenv",
     "scikit-learn",
+    "torch",
     "tqdm",
+    "transformers",
 ]
 
 [project.optional-dependencies]
