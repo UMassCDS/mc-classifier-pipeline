@@ -2,11 +2,17 @@ import argparse
 from datetime import datetime
 import gc
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .bert_recipe import BERTTextClassifier
 from .sk_naive_bayes_recipe import SKNaiveBayesTextClassifier
+from .utils import configure_logging
+
+# Set up logging
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 def build_trainer_parser(add_help=True):
@@ -49,7 +55,9 @@ def make_timestamp_dir(parent: Path) -> Path:
     """
     base = datetime.now().strftime("%Y%m%d_%H%M%S")
     # Avoid collisions if called multiple times in the same second.
-    for i in range(1000):
+    MAX_DIRECTORY_ATTEMPTS = 1000
+
+    for i in range(MAX_DIRECTORY_ATTEMPTS):
         suffix = f"_{i:03d}"
         p = parent / f"{base}{suffix}"
         if not p.exists():
@@ -69,8 +77,14 @@ def load_models_config(config_file: str, selected_models: Optional[List[str]] = 
     Returns:
         List of model configuration dictionaries
     """
-    with open(config_file, "r", encoding="utf-8") as f:
-        config = json.load(f)
+    try:
+        with open(config_file, "r", encoding="utf-8") as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Config file not found: {config_file}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON config file: {e}")
+    
 
     if "models" not in config:
         raise ValueError("Config file must have a 'models' key with list of model definitions")
@@ -106,7 +120,7 @@ def train_model_from_config(
     model_params = model_config.get("model_params", {})
     config_name = model_config.get("name", "unnamed_model")
 
-    print(f"Training {config_name} ({model_type})...")
+    logger.info(f"Training {config_name} ({model_type})...")
 
     # Create classifier directly based on type
     if model_type == "BertFineTune":
@@ -131,7 +145,7 @@ def train_model_from_config(
         save_path=str(out_dir),
         text_column=text_column,
         label_column=label_column,
-        hyperparams=model_params if model_params else None,
+        hyperparams=model_params,
     )
 
     # Save metadata with config name and framework
@@ -145,12 +159,18 @@ def train_model_from_config(
     del clf
     gc.collect()
 
-    print(f"Saved to {out_dir}")
+    logger.info(f"Saved to {out_dir}")
     return out_dir
 
 
-def train_all_models(experiment_dir, model_configs, text_column, label_column):
+def train_all_models(
+    experiment_dir: Path, 
+    model_configs: List[Dict[str, Any]], 
+    text_column: str, 
+    label_column: str
+) -> List[Path]:
     """Train all models from their configurations."""
+    logger.info(f"Starting training for {len(model_configs)} models")
     models_root = experiment_dir / "models"
     models_root.mkdir(parents=True, exist_ok=True)
 
@@ -164,7 +184,7 @@ def train_all_models(experiment_dir, model_configs, text_column, label_column):
 
     trained_dirs: List[Path] = []
     for i, config in enumerate(model_configs):
-        print(f"\n[{i + 1}/{len(model_configs)}] Starting training...")
+        logger.info(f"[{i + 1}/{len(model_configs)}] Starting training...")
         start_time = datetime.now()
 
         try:
@@ -189,7 +209,7 @@ def train_all_models(experiment_dir, model_configs, text_column, label_column):
             )
 
         except Exception as e:
-            print(f"  ✗ Failed: {str(e)}")
+            logger.error(f"Failed: {str(e)}")
             # Log failed training
             training_log["models_trained"].append(
                 {
@@ -205,10 +225,25 @@ def train_all_models(experiment_dir, model_configs, text_column, label_column):
     training_log["completed_at"] = datetime.now().isoformat()
     training_log["total_duration_seconds"] = sum(m.get("duration_seconds", 0) for m in training_log["models_trained"])
 
+    # Count successes and failures
+    successful_models = [m for m in training_log["models_trained"] if m.get("status") == "success"]
+    failed_models = [m for m in training_log["models_trained"] if m.get("status") == "failed"]
+    
     with open(models_root / "training_summary.json", "w") as f:
         json.dump(training_log, f, indent=2)
 
-    print(f"\nTraining complete! Summary saved to {models_root / 'training_summary.json'}")
+    # Log training summary
+    logger.info(f"Training complete! {len(successful_models)} models succeeded, {len(failed_models)} models failed out of {len(model_configs)} total")
+    
+    if failed_models:
+        failed_names = [m["config_name"] for m in failed_models]
+        logger.warning(f"Failed models: {', '.join(failed_names)}")
+    
+    if successful_models:
+        successful_names = [m["config_name"] for m in successful_models]
+        logger.info(f"Successful models: {', '.join(successful_names)}")
+    
+    logger.info(f"Training summary saved to {models_root / 'training_summary.json'}")
     return trained_dirs
 
 
@@ -216,7 +251,9 @@ def main(args: Optional[argparse.Namespace] = None):
     if args is None:
         args = parse_args()
 
+    logger.info("Starting model training pipeline")
     experiment_dir = Path(args.experiment_dir).resolve()
+    logger.info(f"Using experiment directory: {experiment_dir}")
 
     # Validate input files
     train_csv = experiment_dir / "train.csv"
@@ -225,14 +262,14 @@ def main(args: Optional[argparse.Namespace] = None):
         raise FileNotFoundError("train.csv and/or test.csv not found in experiment-dir")
 
     # Load model configurations
-    print(f"Loading models from config: {args.models_config}")
+    logger.info(f"Loading models from config: {args.models_config}")
     if args.model_names:
-        print(f"Training selected models: {args.model_names}")
+        logger.info(f"Training selected models: {args.model_names}")
     model_configs = load_models_config(args.models_config, args.model_names)
 
-    print(f"Will train {len(model_configs)} models")
+    logger.info(f"Will train {len(model_configs)} models")
     for i, config in enumerate(model_configs):
-        print(f"  {i + 1}. {config.get('name', 'unnamed')} ({config['model_type']})")
+        logger.info(f"  {i + 1}. {config.get('name', 'unnamed')} ({config['model_type']})")
 
     # Train all models
     train_all_models(experiment_dir, model_configs, args.text_column, args.label_column)
