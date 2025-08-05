@@ -33,7 +33,15 @@ logger = logging.getLogger(__name__)
 
 
 class TextClassificationDataset(Dataset):
-    """Custom dataset for text classification"""
+    """
+    Custom PyTorch Dataset for text classification tasks.
+
+    Args:
+        texts (List[str]): List of input text samples.
+        labels (List[int]): List of encoded label values.
+        tokenizer (transformers.PreTrainedTokenizer): Tokenizer for encoding text.
+        max_length (int, optional): Maximum sequence length for tokenization. Defaults to 512.
+    """
 
     def __init__(self, texts, labels, tokenizer, max_length=512):
         self.texts = texts
@@ -42,16 +50,24 @@ class TextClassificationDataset(Dataset):
         self.max_length = max_length
 
     def __len__(self):
+        """Return the number of samples in the dataset."""
         return len(self.texts)
 
     def __getitem__(self, idx):
+        """
+        Retrieve a single sample from the dataset and tokenize it.
+
+        Args:
+            idx (int): Index of the sample to retrieve.
+
+        Returns:
+            dict: Dictionary containing input_ids, attention_mask, and label tensor.
+        """
         text = str(self.texts[idx])
         label = self.labels[idx]
-
         encoding = self.tokenizer(
             text, truncation=True, padding="max_length", max_length=self.max_length, return_tensors="pt"
         )
-
         return {
             "input_ids": encoding["input_ids"].flatten(),
             "attention_mask": encoding["attention_mask"].flatten(),
@@ -60,7 +76,13 @@ class TextClassificationDataset(Dataset):
 
 
 class BERTTextClassifier:
-    """BERT-based text classifier with training and inference capabilities"""
+    """
+    BERT-based text classifier supporting training, hyperparameter optimization, and inference.
+
+    Args:
+        model_name (str): Name or path of the pretrained BERT model.
+        use_optuna (bool, optional): Whether to use Optuna for hyperparameter optimization. Defaults to False.
+    """
 
     def __init__(self, model_name: str = "bert-base-uncased", use_optuna: bool = False):
         self.model_name = model_name
@@ -85,7 +107,17 @@ class BERTTextClassifier:
     def load_data(
         self, project_folder: str, text_column: str = "text", label_column: str = "label"
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Load train and test data from CSV files"""
+        """
+        Load training and test data from CSV files in the specified project folder.
+
+        Args:
+            project_folder (str): Path to the folder containing train.csv and test.csv.
+            text_column (str, optional): Name of the text column. Defaults to "text".
+            label_column (str, optional): Name of the label column. Defaults to "label".
+
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: Training and test DataFrames.
+        """
         train_path = os.path.join(project_folder, "train.csv")
         test_path = os.path.join(project_folder, "test.csv")
 
@@ -106,7 +138,12 @@ class BERTTextClassifier:
         return train_df, test_df
 
     def prepare_model(self, num_labels: int):
-        """Initialize tokenizer and model"""
+        """
+        Initialize the tokenizer and BERT model for sequence classification.
+
+        Args:
+            num_labels (int): Number of unique label classes.
+        """
         logger.info(f"Loading tokenizer and model: {self.model_name}")
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
@@ -128,7 +165,19 @@ class BERTTextClassifier:
         label_column: str = "label",
         max_length: int = 512,
     ):
-        """Prepare training and test datasets"""
+        """
+        Prepare PyTorch datasets for training and testing.
+
+        Args:
+            train_df (pd.DataFrame): Training data.
+            test_df (pd.DataFrame): Test data.
+            text_column (str, optional): Name of the text column. Defaults to "text".
+            label_column (str, optional): Name of the label column. Defaults to "label".
+            max_length (int, optional): Maximum sequence length. Defaults to 512.
+
+        Returns:
+            Tuple[TextClassificationDataset, TextClassificationDataset]: Training and test datasets.
+        """
 
         # Encode labels
         all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
@@ -154,7 +203,15 @@ class BERTTextClassifier:
         return train_dataset, test_dataset
 
     def compute_metrics(self, eval_pred):
-        """Compute metrics for evaluation"""
+        """
+        Compute evaluation metrics (accuracy, precision, recall, F1) for predictions.
+
+        Args:
+            eval_pred (Tuple[np.ndarray, np.ndarray]): Tuple of predictions and true labels.
+
+        Returns:
+            dict: Dictionary of metric names and values.
+        """
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=1)
 
@@ -164,7 +221,15 @@ class BERTTextClassifier:
         return {"accuracy": accuracy, "f1": f1, "precision": precision, "recall": recall}
 
     def _objective(self, trial):
-        """Optuna objective function"""
+        """
+        Optuna objective function for hyperparameter optimization.
+
+        Args:
+            trial (optuna.trial.Trial): Optuna trial object.
+
+        Returns:
+            float: Evaluation F1 score for the trial.
+        """
 
         # Suggest hyperparameters
         params = {
@@ -242,7 +307,20 @@ class BERTTextClassifier:
         timeout: Optional[int] = None,
         save_path: Optional[str] = None,
     ):
-        """Run Optuna optimization"""
+        """
+        Run Optuna hyperparameter optimization for the BERT model.
+
+        Args:
+            project_folder (str): Path to project folder with data.
+            text_column (str, optional): Name of the text column. Defaults to "text".
+            label_column (str, optional): Name of the label column. Defaults to "label".
+            n_trials (int, optional): Number of Optuna trials. Defaults to 5.
+            timeout (Optional[int], optional): Timeout in seconds. Defaults to None.
+            save_path (Optional[str], optional): Path to save Optuna study. Defaults to None.
+
+        Returns:
+            optuna.Study: The completed Optuna study object.
+        """
         try:
             import optuna
             from optuna.pruners import MedianPruner
@@ -285,7 +363,22 @@ class BERTTextClassifier:
         n_trials: int = 5,
         timeout: Optional[int] = None,
     ):
-        """Train the BERT model with optional optimization"""
+        """
+        Train the BERT model, optionally using Optuna for hyperparameter optimization.
+
+        Args:
+            project_folder (str): Path to project folder with data.
+            save_path (str): Path to save trained model and artifacts.
+            text_column (str, optional): Name of the text column. Defaults to "text".
+            label_column (str, optional): Name of the label column. Defaults to "label".
+            hyperparams (Optional[Dict[str, Any]], optional): Hyperparameters for training. Defaults to None.
+            optimize_hyperparams (Optional[bool], optional): Whether to optimize hyperparameters. Defaults to None.
+            n_trials (int, optional): Number of Optuna trials. Defaults to 5.
+            timeout (Optional[int], optional): Timeout for optimization. Defaults to None.
+
+        Returns:
+            dict: Metadata about the trained model and training process.
+        """
 
         # Determine if we should optimize
         should_optimize = optimize_hyperparams if optimize_hyperparams is not None else self.use_optuna
@@ -338,7 +431,20 @@ class BERTTextClassifier:
         hyperparams: Optional[Dict[str, Any]] = None,
         use_stored_data: bool = False,
     ):
-        """Standard training implementation"""
+        """
+        Standard training implementation for BERT model.
+
+        Args:
+            project_folder_or_save_path (str): Project folder or save path depending on call pattern.
+            save_path_or_hyperparams: Save path or hyperparameters depending on call pattern.
+            text_column (str, optional): Name of the text column. Defaults to "text".
+            label_column (str, optional): Name of the label column. Defaults to "label".
+            hyperparams (Optional[Dict[str, Any]], optional): Training hyperparameters. Defaults to None.
+            use_stored_data (bool, optional): Whether to use stored data. Defaults to False.
+
+        Returns:
+            dict: Metadata about the trained model and training process.
+        """
 
         # Handle different call patterns
         if use_stored_data:
@@ -463,7 +569,15 @@ class BERTTextClassifier:
 
     @classmethod
     def load_for_inference(cls, model_path: str):
-        """Load a trained model for inference"""
+        """
+        Load a trained BERT model and associated artifacts for inference.
+
+        Args:
+            model_path (str): Path to the trained model directory.
+
+        Returns:
+            BERTTextClassifier: Loaded classifier instance ready for inference.
+        """
 
         # Load metadata
         metadata_path = os.path.join(model_path, "metadata.json")
@@ -499,7 +613,17 @@ class BERTTextClassifier:
         return classifier
 
     def predict(self, texts, batch_size: int = 32, return_probabilities: bool = False):
-        """Make predictions on new text data"""
+        """
+        Make predictions on new text data using the trained model.
+
+        Args:
+            texts (List[str]): List of input text samples.
+            batch_size (int, optional): Batch size for prediction. Defaults to 32.
+            return_probabilities (bool, optional): Whether to return class probabilities. Defaults to False.
+
+        Returns:
+            np.ndarray or Tuple[np.ndarray, np.ndarray]: Predicted labels, optionally with probabilities.
+        """
         if self.model is None or self.tokenizer is None:
             raise ValueError("Model not loaded. Use load_for_inference() first.")
 
@@ -544,11 +668,21 @@ class BERTTextClassifier:
             return predicted_labels
 
     def get_model_info(self):
-        """Get model information"""
+        """
+        Retrieve metadata information about the trained model.
+
+        Returns:
+            dict: Model metadata.
+        """
         return self.metadata
 
     def get_optimization_history(self):
-        """Get Optuna optimization history if available"""
+        """
+        Get Optuna optimization history if available.
+
+        Returns:
+            dict or None: Dictionary containing optimization history, or None if not available.
+        """
         if not hasattr(self, "study") or self.study is None:
             return None
         trials_df = self.study.trials_dataframe()
