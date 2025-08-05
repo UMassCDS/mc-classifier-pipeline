@@ -535,12 +535,15 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError(f"Project ID must be positive, got {args.project_id}")
 
 
-def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> None:
+def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> Path:
     """
     Main function to execute the preprocessing pipeline.
 
     Args:
         args: Optional parsed arguments (for testing/integration)
+
+    Returns:
+        Path to the created experiment directory
     """
     if args is None:
         args = parse_args()
@@ -598,6 +601,8 @@ def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> Non
     logger.info(f"Training samples: {len(train_records)}")
     logger.info(f"Test samples: {len(test_records)}")
 
+    return experiment_dir
+
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
@@ -606,4 +611,4 @@ if __name__ == "__main__":
     # Re-load env vars in case running as script
     LABEL_STUDIO_HOST = os.getenv("LABEL_STUDIO_HOST")
     LABEL_STUDIO_TOKEN = os.getenv("LABEL_STUDIO_TOKEN")
-    run_preprocessing_pipeline()
+    _ = run_preprocessing_pipeline()
