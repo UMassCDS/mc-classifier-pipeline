@@ -91,19 +91,19 @@ class SKNaiveBayesTextClassifier:
 
     def objective(self, trial, train_texts, train_labels, cv_folds=3):
         """Optuna objective function for hyperparameter optimization"""
-        
+
         # Suggest hyperparameters
         ngram_min = trial.suggest_int("ngram_min", 1, 2)
         ngram_max = trial.suggest_int("ngram_max", ngram_min, 3)
         min_df = trial.suggest_int("min_df", 1, 10)
         max_df = trial.suggest_float("max_df", 0.5, 1.0)
         alpha = trial.suggest_float("alpha", 0.01, 10.0, log=True)
-        
+
         # Additional TF-IDF parameters
         max_features = trial.suggest_categorical("max_features", [None, 1000, 5000, 10000, 20000])
         use_idf = trial.suggest_categorical("use_idf", [True, False])
         sublinear_tf = trial.suggest_categorical("sublinear_tf", [True, False])
-        
+
         try:
             # Create vectorizer with trial parameters
             vectorizer = TfidfVectorizer(
@@ -113,33 +113,30 @@ class SKNaiveBayesTextClassifier:
                 max_features=max_features,
                 use_idf=use_idf,
                 sublinear_tf=sublinear_tf,
-                stop_words='english'
+                stop_words="english",
             )
-            
+
             # Transform texts
             X_train = vectorizer.fit_transform(train_texts)
-            
+
             # Create model with trial parameters
             model = MultinomialNB(alpha=alpha)
-            
+
             # Perform cross-validation
-            cv_scores = cross_val_score(
-                model, X_train, train_labels, 
-                cv=cv_folds, scoring='f1_weighted', n_jobs=-1
-            )
-            
+            cv_scores = cross_val_score(model, X_train, train_labels, cv=cv_folds, scoring="f1_weighted", n_jobs=-1)
+
             # Return mean CV score
             mean_score = cv_scores.mean()
-            
+
             # Report intermediate value for pruning
             trial.report(mean_score, step=0)
-            
+
             # Check if trial should be pruned
             if trial.should_prune():
                 raise optuna.TrialPruned()
-                
+
             return mean_score
-            
+
         except Exception as e:
             logger.warning(f"Trial failed with error: {e}")
             return 0.0
@@ -155,44 +152,39 @@ class SKNaiveBayesTextClassifier:
         study_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Optimize hyperparameters using Optuna"""
-        
+
         logger.info(f"Starting hyperparameter optimization with {n_trials} trials")
-        
+
         # Create study
         if study_name is None:
             study_name = f"naive_bayes_optimization_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            
+
         sampler = TPESampler(seed=sampler_seed)
         pruner = MedianPruner(n_startup_trials=5, n_warmup_steps=1)
-        
-        self.study = optuna.create_study(
-            direction=direction,
-            sampler=sampler,
-            pruner=pruner,
-            study_name=study_name
-        )
-        
+
+        self.study = optuna.create_study(direction=direction, sampler=sampler, pruner=pruner, study_name=study_name)
+
         # Optimize
         self.study.optimize(
             lambda trial: self.objective(trial, train_texts, train_labels, cv_folds),
             n_trials=n_trials,
-            show_progress_bar=True
+            show_progress_bar=True,
         )
-        
+
         # Get best parameters
         self.best_params = self.study.best_params
         best_score = self.study.best_value
-        
+
         logger.info(f"Optimization completed!")
         logger.info(f"Best score: {best_score:.4f}")
         logger.info(f"Best parameters: {self.best_params}")
-        
+
         # Return optimization results
         return {
             "best_params": self.best_params,
             "best_score": best_score,
             "n_trials": len(self.study.trials),
-            "study_name": study_name
+            "study_name": study_name,
         }
 
     def train(
@@ -207,7 +199,7 @@ class SKNaiveBayesTextClassifier:
         cv_folds: int = 3,
     ):
         """Train the Naive Bayes model with optional hyperparameter optimization"""
-        
+
         # Load and prepare data
         train_df, test_df = self.load_data(project_folder, text_column, label_column)
         (train_texts, train_labels), (test_texts, test_labels) = self.prepare_datasets(
@@ -223,19 +215,17 @@ class SKNaiveBayesTextClassifier:
             "max_features": None,
             "use_idf": True,
             "sublinear_tf": False,
-            "stop_words": 'english'
+            "stop_words": "english",
         }
 
         optimization_results = None
-        
+
         if optimize_hyperparams:
             # Optimize hyperparameters
             optimization_results = self.optimize_hyperparameters(
-                train_texts, train_labels, 
-                n_trials=optuna_trials, 
-                cv_folds=cv_folds
+                train_texts, train_labels, n_trials=optuna_trials, cv_folds=cv_folds
             )
-            
+
             # Update hyperparameters with optimized values
             optimized_params = {
                 "ngram_range": (self.best_params["ngram_min"], self.best_params["ngram_max"]),
@@ -245,11 +235,11 @@ class SKNaiveBayesTextClassifier:
                 "max_features": self.best_params["max_features"],
                 "use_idf": self.best_params["use_idf"],
                 "sublinear_tf": self.best_params["sublinear_tf"],
-                "stop_words": 'english'
+                "stop_words": "english",
             }
             default_hyperparams.update(optimized_params)
             logger.info("Using optimized hyperparameters")
-        
+
         if hyperparams:
             default_hyperparams.update(hyperparams)
             logger.info("Using provided hyperparameters (may override optimized ones)")
@@ -262,7 +252,7 @@ class SKNaiveBayesTextClassifier:
             max_features=default_hyperparams["max_features"],
             use_idf=default_hyperparams["use_idf"],
             sublinear_tf=default_hyperparams["sublinear_tf"],
-            stop_words=default_hyperparams["stop_words"]
+            stop_words=default_hyperparams["stop_words"],
         )
         X_train = self.vectorizer.fit_transform(train_texts)
         X_test = self.vectorizer.transform(test_texts)
@@ -297,10 +287,7 @@ class SKNaiveBayesTextClassifier:
             "training_samples": len(train_df),
             "test_samples": len(test_df),
             "hyperparameters": default_hyperparams,
-            "hyperparameter_optimization": {
-                "enabled": optimize_hyperparams,
-                "results": optimization_results
-            },
+            "hyperparameter_optimization": {"enabled": optimize_hyperparams, "results": optimization_results},
             "training_time": datetime.now().isoformat(),
             "final_eval_results": eval_result,
             "text_column": text_column,
@@ -367,7 +354,7 @@ class SKNaiveBayesTextClassifier:
         """Get optimization history if available"""
         if self.study is None:
             return None
-        
+
         trials_df = self.study.trials_dataframe()
         return {
             "best_value": self.study.best_value,
@@ -375,9 +362,10 @@ class SKNaiveBayesTextClassifier:
             "n_trials": len(self.study.trials),
             "trials_dataframe": trials_df,
             "optimization_history": [
-                {"trial": i, "value": trial.value, "params": trial.params} 
-                for i, trial in enumerate(self.study.trials) if trial.value is not None
-            ]
+                {"trial": i, "value": trial.value, "params": trial.params}
+                for i, trial in enumerate(self.study.trials)
+                if trial.value is not None
+            ],
         }
 
 
@@ -391,18 +379,15 @@ if __name__ == "__main__":
         text_column="text",
         label_column="label",
         optimize_hyperparams=True,
-        optuna_trials=50,  
-        cv_folds=3
+        optuna_trials=50,
+        cv_folds=3,
     )
     print("Metadata: ", metadata)
 
     # Load and make predictions
-    classifier = SKNaiveBayesTextClassifier.load_for_inference(
-        model_path="models/sk-naive-bayes-optimized"
-    )
+    classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path="models/sk-naive-bayes-optimized")
     predictions = classifier.predict(
-        texts=["That superman movie was so bad. I hated it. I would never watch it again."], 
-        return_probabilities=True
+        texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
     )
     print("Predictions:", predictions)
 
