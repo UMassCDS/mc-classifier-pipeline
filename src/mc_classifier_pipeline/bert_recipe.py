@@ -260,6 +260,10 @@ class BERTTextClassifier:
         )
 
         self.best_trial = study.best_trial
+        self.study = study  # Store study for later use
+        # Save Optuna study to disk
+        if hasattr(self, "study") and self.study is not None:
+            joblib.dump(self.study, os.path.join(project_folder, "optuna_study.pkl"))
         logger.info(f"Best F1: {study.best_value:.4f}, Best params: {study.best_params}")
         return study
 
@@ -473,6 +477,14 @@ class BERTTextClassifier:
         label_encoder_path = os.path.join(model_path, "label_encoder.pkl")
         classifier.label_encoder = joblib.load(label_encoder_path)
 
+        # Load Optuna study if exists
+        study_path = os.path.join(model_path, "optuna_study.pkl")
+        if os.path.exists(study_path):
+            classifier.study = joblib.load(study_path)
+            logger.info("Optuna study loaded successfully")
+        else:
+            classifier.study = None
+
         logger.info(f"Model loaded successfully from {model_path}")
 
         return classifier
@@ -525,6 +537,23 @@ class BERTTextClassifier:
     def get_model_info(self):
         """Get model information"""
         return self.metadata
+
+    def get_optimization_history(self):
+        """Get Optuna optimization history if available"""
+        if not hasattr(self, "study") or self.study is None:
+            return None
+        trials_df = self.study.trials_dataframe()
+        return {
+            "best_value": self.study.best_value,
+            "best_params": self.study.best_params,
+            "n_trials": len(self.study.trials),
+            "trials_dataframe": trials_df,
+            "optimization_history": [
+                {"trial": i, "value": trial.value, "params": trial.params}
+                for i, trial in enumerate(self.study.trials)
+                if trial.value is not None
+            ],
+        }
 
 
 # if __name__ == "__main__":
