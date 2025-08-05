@@ -113,7 +113,7 @@ def predict_labels_hf(
     Hugging Face inference: load tokenizer+model from `model_dir`,
     run batched inference on `texts`, and inverse-transform to string labels.
     """
-    from .bert_recipe import BERTTextClassifier
+    from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
 
     logger.debug(f"Loading HuggingFace model from: {model_dir}")
     # Use BERTTextClassifier from bert_recipe for HF model predictions
@@ -133,7 +133,7 @@ def predict_labels_sklearn(
     texts: List[str],
 ) -> List[str]:
     """Use SKNaiveBayesTextClassifier for sklearn predictions."""
-    from .sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module
+    from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module
 
     logger.debug(f"Loading sklearn model from: {model_dir}")
     classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)
@@ -216,6 +216,8 @@ def evaluate_models(
 
     rows = []
     per_model_metrics: Dict[str, Dict] = {}
+    success_count = 0
+    failure_count = 0
 
     logger.info(f"Evaluating {len(model_dirs)} models with weighted metrics (framework-aware)")
     for item in tqdm(model_dirs):
@@ -247,6 +249,7 @@ def evaluate_models(
             }
             rows.append(row)
             per_model_metrics[name] = row.copy()
+            success_count += 1
 
             # Clean up memory after successful evaluation
             _cleanup_memory()
@@ -266,11 +269,22 @@ def evaluate_models(
             }
             rows.append(row)
             per_model_metrics[name] = {"error": str(e), "framework": framework}
+            failure_count += 1
 
             # Clean up memory even after failures
             _cleanup_memory()
 
     logger.info("All model evaluations completed")
+    logger.info(f"Evaluation summary: {success_count} models succeeded, {failure_count} models failed out of {len(model_dirs)} total")
+    
+    if failure_count > 0:
+        failed_models = [row['model_name'] for row in rows if 'error' in row]
+        logger.warning(f"Failed models: {', '.join(failed_models)}")
+    
+    if success_count > 0:
+        successful_models = [row['model_name'] for row in rows if 'error' not in row]
+        logger.info(f"Successful models: {', '.join(successful_models)}")
+    
     results = pd.DataFrame(rows)
 
     # Sort leaderboard by chosen metric (descending)
@@ -297,6 +311,9 @@ def evaluate_models(
         "text_column": text_column,
         "label_column": label_column,
         "best_metric": best_metric,
+        "total_models": len(model_dirs),
+        "successful_models": success_count,
+        "failed_models": failure_count,
         "best_model": {
             "model_name": best_row.get("model_name") if best_row else None,
             "model_path": best_row.get("model_path") if best_row else None,
@@ -306,7 +323,7 @@ def evaluate_models(
         "metrics_per_model": per_model_metrics,
     }
 
-    logger.info(f"Evaluation summary created for {len(results)} models")
+    logger.info(f"Evaluation summary created: {success_count} successful, {failure_count} failed, {len(results)} total models")
     return results, summary
 
 
