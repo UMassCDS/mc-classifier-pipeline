@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import logging
 import os
+import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple, Any
@@ -36,6 +37,20 @@ def validate_environment_variables() -> Tuple[str, str]:
         raise ValueError(f"Missing env variables: {', '.join(missing_vars)}. set them in your .env file.")
 
     return LABEL_STUDIO_HOST, LABEL_STUDIO_TOKEN
+
+
+def is_multi_label_from_config(label_config: str) -> bool:
+    """
+    Parse the Label Studio XML config and return True if multi-label, else False.
+    """
+    try:
+        root = ET.fromstring(label_config)
+        choices = root.find('.//Choices')
+        if choices is not None:
+            return choices.attrib.get('choice', 'single') == 'multiple'
+    except Exception:
+        pass
+    return False
 
 
 def get_project_info(client: LabelStudio, project_id: int) -> Dict[str, Any]:
@@ -117,13 +132,14 @@ def download_tasks_and_annotations(client: LabelStudio, project_id: int) -> List
         raise
 
 
-def extract_text_and_labels(tasks: List[Dict[str, Any]], target_label: Optional[str] = None) -> List[Dict[str, Any]]:
+def extract_text_and_labels(tasks: List[Dict[str, Any]], target_label: Optional[str] = None, is_multi_label: bool = False) -> List[Dict[str, Any]]:
     """
     Extract text and labels from Label Studio tasks for text classification.
 
     Args:
         tasks: List of tasks with annotations
         target_label: Specific label to target (if annotation config supports multiple choices)
+        is_multi_label: Boolean indicating if this is a multi-label classification task
 
     Returns:
         List of records with text and labels suitable for classification
@@ -178,21 +194,26 @@ def extract_text_and_labels(tasks: List[Dict[str, Any]], target_label: Optional[
 
             # Create record if we have labels
             if labels:
-                label = labels[0] if len(labels) == 1 else labels
-                record = {
-                    "text": text,
-                    "label": label,
-                    "task_id": task["id"],
-                    "annotation_id": annotation["id"],
-                    "story_id": task["data"].get("story_id", ""),
-                    "title": task["data"].get("title", ""),
-                    "url": task["data"].get("url", ""),
-                    "language": task["data"].get("language", ""),
-                    "publish_date": task["data"].get("publish_date", ""),
-                    "annotated_by": annotation.get("completed_by", ""),
-                    "annotated_at": annotation.get("created_at", ""),
-                }
-                records.append(record)
+                if is_multi_label:
+                    label = labels
+                else:
+                    label = labels[0] if labels else None
+                
+                if label is not None:
+                    record = {
+                        "text": text,
+                        "label": label,
+                        "task_id": task["id"],
+                        "annotation_id": annotation["id"],
+                        "story_id": task["data"].get("story_id", ""),
+                        "title": task["data"].get("title", ""),
+                        "url": task["data"].get("url", ""),
+                        "language": task["data"].get("language", ""),
+                        "publish_date": task["data"].get("publish_date", ""),
+                        "annotated_by": annotation.get("completed_by", ""),
+                        "annotated_at": annotation.get("created_at", ""),
+                    }
+                    records.append(record)
 
     logger.info(f"Extracted {len(records)} labeled records from {len(tasks)} tasks")
     logger.info(f"Skipped {skipped_count} tasks (no annotations or no text)")
@@ -546,11 +567,15 @@ def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> Non
     # Get project information
     project_info = get_project_info(client, args.project_id)
 
+    # Determine if this is a multi-label task from the label configuration
+    is_multi_label = is_multi_label_from_config(project_info["label_config"])
+    logger.info(f"Task type: {'multi-label' if is_multi_label else 'single-label'}")
+
     # Download tasks and annotations
     tasks = download_tasks_and_annotations(client, args.project_id)
 
     # Extract text and labels
-    records = extract_text_and_labels(tasks, args.target_label)
+    records = extract_text_and_labels(tasks, args.target_label, is_multi_label)
 
     if not records:
         logger.error("No labeled records found. Cannot create train/test split.")
