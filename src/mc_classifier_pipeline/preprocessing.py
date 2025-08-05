@@ -14,7 +14,7 @@ from label_studio_sdk.client import LabelStudio
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from . import utils
+from mc_classifier_pipeline import utils
 
 
 # Configure logging
