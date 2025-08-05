@@ -45,9 +45,9 @@ def is_multi_label_from_config(label_config: str) -> bool:
     """
     try:
         root = ET.fromstring(label_config)
-        choices = root.find('.//Choices')
+        choices = root.find(".//Choices")
         if choices is not None:
-            return choices.attrib.get('choice', 'single') == 'multiple'
+            return choices.attrib.get("choice", "single") == "multiple"
     except Exception:
         pass
     return False
@@ -132,7 +132,9 @@ def download_tasks_and_annotations(client: LabelStudio, project_id: int) -> List
         raise
 
 
-def extract_text_and_labels(tasks: List[Dict[str, Any]], target_label: Optional[str] = None, is_multi_label: bool = False) -> List[Dict[str, Any]]:
+def extract_text_and_labels(
+    tasks: List[Dict[str, Any]], target_label: Optional[str] = None, is_multi_label: bool = False
+) -> List[Dict[str, Any]]:
     """
     Extract text and labels from Label Studio tasks for text classification.
 
@@ -198,7 +200,7 @@ def extract_text_and_labels(tasks: List[Dict[str, Any]], target_label: Optional[
                     label = labels
                 else:
                     label = labels[0] if labels else None
-                
+
                 if label is not None:
                     record = {
                         "text": text,
