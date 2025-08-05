@@ -20,10 +20,10 @@ sys.path.insert(0, os.path.abspath(".."))
 
 project = "mc_classifier_pipeline"
 copyright = "2023, UMass Amherst Center for Data Science"
-author = "Luke Ruud"
+author = " "
 
 # The full version, including alpha/beta/rc tags
-release = "2.1.0"
+release = "0.0.1"
 
 
 # -- General configuration ---------------------------------------------------
