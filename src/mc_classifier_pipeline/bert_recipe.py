@@ -80,6 +80,7 @@ class BERTTextClassifier:
         self.test_df = None
         self.text_column = None
         self.label_column = None
+        self.study = None
 
     def load_data(
         self, project_folder: str, text_column: str = "text", label_column: str = "label"
@@ -164,10 +165,6 @@ class BERTTextClassifier:
 
     def _objective(self, trial):
         """Optuna objective function"""
-        try:
-            import optuna
-        except ImportError:
-            raise ImportError("Optuna required: pip install optuna")
 
         # Suggest hyperparameters
         params = {
@@ -224,6 +221,12 @@ class BERTTextClassifier:
 
                 trainer.train()
                 eval_result = trainer.evaluate()
+
+                del trainer
+                del self.model
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
                 return eval_result["eval_f1"]
 
         except Exception as e:
@@ -237,6 +240,7 @@ class BERTTextClassifier:
         label_column: str = "label",
         n_trials: int = 5,
         timeout: Optional[int] = None,
+        save_path: Optional[str] = None,
     ):
         """Run Optuna optimization"""
         try:
@@ -260,10 +264,13 @@ class BERTTextClassifier:
         )
 
         self.best_trial = study.best_trial
-        self.study = study  # Store study for later use
-        # Save Optuna study to disk
+        self.study = study
+        # Save Optuna study to disk in the final model directory
         if hasattr(self, "study") and self.study is not None:
-            joblib.dump(self.study, os.path.join(project_folder, "optuna_study.pkl"))
+            # Use self.save_path if set, else fallback to project_folder
+            save_dir = save_path if save_path else project_folder
+            joblib.dump(self.study, os.path.join(save_dir, "optuna_study.pkl"))
+            logger.info(f"Optuna study saved to {os.path.join(save_dir, 'optuna_study.pkl')}")
         logger.info(f"Best F1: {study.best_value:.4f}, Best params: {study.best_params}")
         return study
 
@@ -285,7 +292,9 @@ class BERTTextClassifier:
 
         if should_optimize:
             logger.info("Using Optuna optimization...")
-            study = self.optimize_hyperparameters(project_folder, text_column, label_column, n_trials, timeout)
+            study = self.optimize_hyperparameters(
+                project_folder, text_column, label_column, n_trials, timeout, save_path
+            )
 
             # Convert best params and train
             best_params = study.best_params
@@ -557,31 +566,36 @@ class BERTTextClassifier:
 
 
 # if __name__ == "__main__":
-#     # Standard training
-#     classifier = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased")
-#     metadata = classifier.train(
-#         project_folder="data",
-#         save_path="models/distilbert-base-uncased",
-#         text_column="text",
-#         label_column="label",
-#     )
-#     print("Standard training completed!")
+# # Standard training
+# classifier = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased")
+# metadata = classifier.train(
+#     project_folder="data",
+#     save_path="models/distilbert-base-uncased",
+#     text_column="text",
+#     label_column="label",
+# )
+# print("Standard training completed!")
 
-#     # Training with optimization
-#     classifier_opt = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased", use_optuna=True)
-#     metadata_opt = classifier_opt.train(
-#         project_folder="data",
-#         save_path="models/optimized-distilbert",
-#         text_column="text",
-#         label_column="label",
-#         n_trials=5,
-#     )
-#     print("Optimized training completed!")
+# # Training with optimization
+# classifier_opt = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased", use_optuna=True)
+# metadata_opt = classifier_opt.train(
+#     project_folder="data",
+#     save_path="models/optimized-distilbert",
+#     text_column="text",
+#     label_column="label",
+#     n_trials=1,
+# )
+# print("Optimized training completed!")
 
-#     # Inference
-#     classifier = BERTTextClassifier.load_for_inference(model_path="models/optimized-distilbert")
-#     predictions = classifier.predict(
-#         texts=["That superman movie was so bad. I hated it. I would never watch it again."],
-#         return_probabilities=True
-#     )
-#     print(predictions)
+# history = classifier_opt.get_optimization_history()
+# print(history)
+
+# # Inference
+# classifier = BERTTextClassifier.load_for_inference(model_path="models/optimized-distilbert")
+# history = classifier.get_optimization_history()
+# print(history)
+# print("Model loaded for inference!")
+# predictions = classifier.predict(
+#     texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
+# )
+# print(predictions)
