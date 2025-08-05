@@ -12,8 +12,8 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.preprocessing import LabelEncoder
 import joblib
 
-# from . import utils
-from utils import configure_logging  # for local running
+from . import utils
+from .utils import configure_logging  # for local running
 
 # Set up logging
 configure_logging()
