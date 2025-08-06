@@ -4,7 +4,7 @@ import gc
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
 from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier
@@ -39,7 +39,7 @@ def build_trainer_parser(add_help=True):
     parser.add_argument(
         "--experiment-dir",
         required=True,
-        help="Path to a folder containing train.csv and test.csv (e.g., experiments/project_42/20250728_113000)",
+        help="Path to a folder containing preprocessing metadata, train.csv and test.csv (e.g., experiments/project_42/20250728_113000)",
     )
     parser.add_argument(
         "--models-config", required=True, help="Path to a models config file with predefined model configurations"
@@ -75,6 +75,117 @@ def make_timestamp_dir(parent: Path) -> Path:
             p.mkdir(parents=True, exist_ok=False)
             return p
     raise RuntimeError("Failed to create a unique timestamped directory")
+
+
+def load_preprocessing_metadata(experiment_dir: Path) -> Dict[str, Any]:
+    """
+    Load preprocessing metadata to understand the task configuration.
+
+    Args:
+        experiment_dir: Path to experiment directory containing metadata.json
+
+    Returns:
+        Dictionary containing preprocessing metadata
+
+    Raises:
+        FileNotFoundError: If metadata.json is not found
+        ValueError: If metadata format is invalid
+    """
+    metadata_path = experiment_dir / "metadata.json"
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"Preprocessing metadata not found: {metadata_path}")
+
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+
+        # Validate required fields
+        required_fields = ["classification_task"]
+        for field in required_fields:
+            if field not in metadata:
+                raise ValueError(f"Missing required field '{field}' in preprocessing metadata")
+
+        logger.info("Successfully loaded preprocessing metadata")
+        return metadata
+
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse preprocessing metadata JSON: {e}")
+
+
+def extract_task_parameters(
+    preprocessing_metadata: Dict[str, Any],
+) -> Tuple[bool, Optional[str], Optional[List[str]], Dict[str, Any]]:
+    """
+    Extract task parameters from preprocessing metadata for model training.
+
+    Args:
+        preprocessing_metadata: Preprocessing metadata dictionary
+
+    Returns:
+        Tuple of (is_multi_label, target_label, target_labels, label_categories)
+    """
+    classification_task = preprocessing_metadata["classification_task"]
+
+    # Determine if this is multi-label
+    task_type = classification_task.get("task_type", "single_label_classification")
+    is_multi_label = task_type == "multi_label_classification"
+
+    # Get target label configuration
+    target_label = classification_task.get("target_label")
+    label_categories = classification_task.get("label_categories", {})
+
+    # Determine target_labels for multi-label tasks
+    target_labels = None
+    if is_multi_label:
+        if target_label and target_label in label_categories:
+            # Multi-label classification for a specific category
+            target_labels = label_categories[target_label]["labels"]
+        else:
+            # Multi-label classification for all labels
+            all_labels = []
+            for category_info in label_categories.values():
+                all_labels.extend(category_info["labels"])
+            target_labels = list(set(all_labels))  # Remove duplicates
+
+    logger.info("Task configuration extracted:")
+    logger.info(f"  - Task type: {task_type}")
+    logger.info(f"  - Is multi-label: {is_multi_label}")
+    logger.info(f"  - Target label: {target_label}")
+    logger.info(f"  - Target labels: {target_labels}")
+    logger.info(f"  - Label categories: {list(label_categories.keys())}")
+
+    return is_multi_label, target_label, target_labels, label_categories
+
+
+def merge_task_parameters_with_hyperparams(
+    model_params: Dict[str, Any], is_multi_label: bool, target_label: Optional[str], target_labels: Optional[List[str]]
+) -> Dict[str, Any]:
+    """
+    Merge task parameters from preprocessing metadata with model hyperparameters.
+
+    Args:
+        model_params: Original model parameters from config
+        is_multi_label: Whether this is a multi-label task
+        target_label: Target label for binary classification
+        target_labels: Target labels for multi-label classification
+
+    Returns:
+        Updated model parameters with task configuration
+    """
+    updated_params = model_params.copy()
+
+    # Add task parameters (these override any existing values)
+    updated_params["is_multi_label"] = is_multi_label
+    updated_params["target_label"] = target_label
+    updated_params["target_labels"] = target_labels
+
+    # Log parameter updates
+    logger.info("Updated hyperparameters with task configuration:")
+    logger.info(f"  - is_multi_label: {is_multi_label}")
+    logger.info(f"  - target_label: {target_label}")
+    logger.info(f"  - target_labels: {target_labels}")
+
+    return updated_params
 
 
 def load_models_config(config_file: str, selected_models: Optional[List[str]] = None) -> List[Dict[str, Any]]:
@@ -122,15 +233,19 @@ def train_model_from_config(
     models_root: Path,
     text_column: str,
     label_column: str,
+    preprocessing_metadata: Dict[str, Any],
 ) -> Path:
     """
-    Train a single model directly from its configuration.
+    Train a single model directly from its configuration using preprocessing metadata.
     """
     model_type = model_config["model_type"]
     model_params = model_config.get("model_params", {})
     config_name = model_config.get("name", "unnamed_model")
 
     logger.info(f"Training {config_name} ({model_type})...")
+
+    # Extract task parameters from preprocessing metadata
+    is_multi_label, target_label, target_labels, label_categories = extract_task_parameters(preprocessing_metadata)
 
     # Create classifier directly based on type
     if model_type == "BertFineTune":
@@ -141,27 +256,46 @@ def train_model_from_config(
         model_name = model_params.get("model_name")
         clf = BERTTextClassifier(model_name=model_name)
         framework = "hf"
+
+        # Merge task parameters with hyperparameters for BERT
+        updated_params = merge_task_parameters_with_hyperparams(
+            model_params, is_multi_label, target_label, target_labels
+        )
+
     elif model_type == "SklearnMultinomialNaiveBayes":
         clf = SKNaiveBayesTextClassifier()
         framework = "sklearn"
+        # For now, use original params for Naive Bayes until Task 4
+        updated_params = model_params
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
     out_dir = make_timestamp_dir(models_root)
 
-    # Train the model
+    # Train the model with updated parameters
     metadata = clf.train(
         project_folder=str(experiment_dir),
         save_path=str(out_dir),
         text_column=text_column,
         label_column=label_column,
-        hyperparams=model_params,
+        hyperparams=updated_params,
     )
 
-    # Save metadata with config name and framework
+    # Save metadata with config name, framework, and preprocessing info
     if isinstance(metadata, dict):
         metadata.setdefault("framework", framework)
         metadata.setdefault("config_name", config_name)
+        # Add preprocessing metadata reference
+        metadata["preprocessing_metadata"] = {
+            "task_type": preprocessing_metadata["classification_task"]["task_type"],
+            "label_categories": label_categories,
+            "overall_is_multi_label": preprocessing_metadata["classification_task"].get(
+                "overall_is_multi_label", False
+            ),
+            "target_label_used": target_label,
+            "target_labels_used": target_labels,
+        }
+
         with open(out_dir / "metadata.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
 
@@ -174,9 +308,13 @@ def train_model_from_config(
 
 
 def train_all_models(
-    experiment_dir: Path, model_configs: List[Dict[str, Any]], text_column: str, label_column: str
+    experiment_dir: Path,
+    model_configs: List[Dict[str, Any]],
+    text_column: str,
+    label_column: str,
+    preprocessing_metadata: Dict[str, Any],
 ) -> List[Path]:
-    """Train all models from their configurations."""
+    """Train all models from their configurations using preprocessing metadata."""
     logger.info(f"Starting training for {len(model_configs)} models")
     models_root = experiment_dir / "models"
     models_root.mkdir(parents=True, exist_ok=True)
@@ -187,6 +325,10 @@ def train_all_models(
         "experiment_dir": str(experiment_dir),
         "models_trained": [],
         "total_models": len(model_configs),
+        "preprocessing_task_type": preprocessing_metadata["classification_task"]["task_type"],
+        "preprocessing_label_categories": list(
+            preprocessing_metadata["classification_task"].get("label_categories", {}).keys()
+        ),
     }
 
     trained_dirs: List[Path] = []
@@ -201,6 +343,7 @@ def train_all_models(
                 models_root=models_root,
                 text_column=text_column,
                 label_column=label_column,
+                preprocessing_metadata=preprocessing_metadata,
             )
             trained_dirs.append(out_dir)
 
@@ -270,6 +413,17 @@ def main(args: Optional[argparse.Namespace] = None):
     if not train_csv.exists() or not test_csv.exists():
         raise FileNotFoundError("train.csv and/or test.csv not found in experiment-dir")
 
+    # Load preprocessing metadata
+    logger.info("Loading preprocessing metadata...")
+    preprocessing_metadata = load_preprocessing_metadata(experiment_dir)
+
+    # Log key preprocessing information
+    task_type = preprocessing_metadata["classification_task"]["task_type"]
+    target_label = preprocessing_metadata["classification_task"].get("target_label")
+    logger.info(f"Preprocessing task type: {task_type}")
+    if target_label:
+        logger.info(f"Preprocessing target label: {target_label}")
+
     # Load model configurations
     logger.info(f"Loading models from config: {args.models_config}")
     if args.model_names:
@@ -280,8 +434,8 @@ def main(args: Optional[argparse.Namespace] = None):
     for i, config in enumerate(model_configs):
         logger.info(f"  {i + 1}. {config.get('name', 'unnamed')} ({config['model_type']})")
 
-    # Train all models
-    train_all_models(experiment_dir, model_configs, args.text_column, args.label_column)
+    # Train all models with preprocessing metadata
+    train_all_models(experiment_dir, model_configs, args.text_column, args.label_column, preprocessing_metadata)
 
 
 if __name__ == "__main__":

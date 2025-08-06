@@ -112,6 +112,7 @@ def predict_labels_hf(
     """
     Hugging Face inference: load tokenizer+model from `model_dir`,
     run batched inference on `texts`, and inverse-transform to string labels.
+    Handles both single-label and multi-label classification.
     """
     from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
 
@@ -120,6 +121,29 @@ def predict_labels_hf(
     classifier = BERTTextClassifier.load_for_inference(model_path=model_dir)
     logger.debug(f"Running predictions on {len(texts)} texts with batch_size={batch_size}")
     predictions = classifier.predict(texts=texts, return_probabilities=False)
+
+    # Check if this is multi-label classification
+    is_multi_label = classifier.metadata.get("is_multi_label", False)
+
+    if is_multi_label:
+        # Convert multi-label tuples to strings
+        # e.g., ('Positive', 'Opinion') -> "Positive|Opinion"
+        # Empty tuples () -> "No Labels"
+        string_predictions = []
+        for pred in predictions:
+            if isinstance(pred, (tuple, list)) and len(pred) > 0:
+                # Join multiple labels with pipe separator
+                string_predictions.append("|".join(sorted(pred)))
+            elif isinstance(pred, (tuple, list)) and len(pred) == 0:
+                # Handle empty predictions
+                string_predictions.append("No Labels")
+            else:
+                # Handle single string predictions (shouldn't happen in multi-label but be safe)
+                string_predictions.append(str(pred))
+        predictions = string_predictions
+    else:
+        # For single-label, ensure predictions are strings
+        predictions = [str(pred) for pred in predictions]
 
     # Explicitly delete the classifier to free memory
     del classifier
@@ -132,13 +156,39 @@ def predict_labels_sklearn(
     model_dir: str,
     texts: List[str],
 ) -> List[str]:
-    """Use SKNaiveBayesTextClassifier for sklearn predictions."""
-    from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module
+    """
+    Use SKNaiveBayesTextClassifier for sklearn predictions.
+    Handles both single-label and multi-label classification.
+    """
+    from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier
 
     logger.debug(f"Loading sklearn model from: {model_dir}")
     classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)
     logger.debug(f"Running sklearn predictions on {len(texts)} texts")
     predictions = classifier.predict(texts=texts, return_probabilities=False)
+
+    # Check if this is multi-label classification
+    is_multi_label = classifier.metadata.get("is_multi_label", False)
+
+    if is_multi_label:
+        # Convert multi-label tuples to strings
+        # e.g., ('Positive', 'Opinion') -> "Positive|Opinion"
+        # Empty tuples () -> "No Labels"
+        string_predictions = []
+        for pred in predictions:
+            if isinstance(pred, (tuple, list)) and len(pred) > 0:
+                # Join multiple labels with pipe separator
+                string_predictions.append("|".join(sorted(pred)))
+            elif isinstance(pred, (tuple, list)) and len(pred) == 0:
+                # Handle empty predictions
+                string_predictions.append("No Labels")
+            else:
+                # Handle single string predictions (shouldn't happen in multi-label but be safe)
+                string_predictions.append(str(pred))
+        predictions = string_predictions
+    else:
+        # For single-label, ensure predictions are strings
+        predictions = [str(pred) for pred in predictions]
 
     # Explicitly delete the classifier to free memory
     del classifier
@@ -366,9 +416,10 @@ def build_argparser():
     return p
 
 
-def main():
+def main(args: Optional[argparse.Namespace] = None):
     logger.info("Starting evaluation script")
-    args = build_argparser().parse_args()
+    if args is None:
+        args = build_argparser()
 
     logger.info(
         f"Evaluation parameters - experiment_dir: {args.experiment_dir}, "

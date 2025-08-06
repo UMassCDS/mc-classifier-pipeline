@@ -17,11 +17,19 @@ You should also add project tags for each release in Github, see [Managing relea
 - Add `evaluation.py` for evaluating multiple models and generating metrics summary with leaderboard
 - Add `trainer.py` for training multiple model recipes from configuration files
 - Add `sk_naive_bayes_recipe.py` for scikit-learn based text classification
+- Add `model_orchestrator.py` for connecting preprocessing, training, and evaluation
 
 ### Changed
 - Modify `doc_retriever` script to store in Label Studio formatted Json.
 - Refactor parsing arguments in both `doc_retriever` and `label_studio_uploader`
 - Modify `doc_retriever` script to accept optional collection ID
+- Refactor multilabel handling in `preprocessing` 
+- Adding multilabel classification support in `bert_recipe`
+- Adding multilabel classification support in `sk_naive_bayes_recipe`
+- Modify `trainer` to use metadata from preprocessing more effectively
+- Modify `trainer` to handle multilabel classification
+- Modify `evaluation` to handle multilabel classification
+
 
 
 
