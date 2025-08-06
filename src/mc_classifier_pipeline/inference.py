@@ -1,30 +1,32 @@
-from argparse import ArgumentParser
-from argparse import RawDescriptionHelpFormatter
-import gc
-import logging
-from pathlib import Path
-import mediacloud.api
-from dotenv import load_dotenv
-import os
-from importlib.metadata import version
 import datetime as dt
+import gc
 import json
+import logging
+import os
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from importlib.metadata import version
+from pathlib import Path
+from typing import List
+
+import mediacloud.api
 import pandas as pd
-from typing import List, Optional
+from dotenv import load_dotenv
 from tqdm import tqdm
 
 from mc_classifier_pipeline import utils
 
-# Configure logging
 utils.configure_logging()
 logger = logging.getLogger(__name__)
 
 
 load_dotenv()
 api_key = os.getenv("MC_API_KEY")
-search_api = mediacloud.api.SearchApi(api_key)
-directory_api = mediacloud.api.DirectoryApi(api_key)
-f"Using Media Cloud python client v{version('mediacloud')}"
+try:
+    search_api = mediacloud.api.SearchApi(api_key)
+    directory_api = mediacloud.api.DirectoryApi(api_key)
+    logger.info(f"Using Media Cloud python client v{version('mediacloud')}")
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize Media Cloud APIs: {e}")
 
 
 def build_inference_parser():
@@ -72,11 +74,21 @@ Examples:
 
 
 def parse_args():
+    """Parse command-line arguments for inference."""
     parser = build_inference_parser()
     return parser.parse_args()
 
 
 def detect_framework(path):
+    """
+    Detect ML framework (HuggingFace or sklearn) from model directory.
+
+    Args:
+        path: Path to model directory
+
+    Returns:
+        str: 'hf', 'sklearn', or None if detection fails
+    """
     meta_path = os.path.join(path, "metadata.json")
     framework = None
     if os.path.exists(meta_path):
@@ -115,7 +127,6 @@ def detect_framework(path):
 def predict_labels_hf(
     model_dir: str,
     texts: List[str],
-    max_length: Optional[int] = None,
     batch_size: int = 32,
 ) -> List[str]:
     """
@@ -179,6 +190,14 @@ def _cleanup_memory():
 
 
 def generate_predictions(model_dir, df, batch_size):
+    """
+    Generate predictions using appropriate framework and add to DataFrame.
+
+    Args:
+        model_dir: Path to trained model
+        df: DataFrame with 'text' column
+        batch_size: Batch size for inference
+    """
     framework = detect_framework(model_dir)
     texts = list(df["text"])
     y_pred = None
@@ -199,11 +218,33 @@ def generate_predictions(model_dir, df, batch_size):
     _cleanup_memory()
 
 
+def validate_dates(start_date, end_date):
+    """Validate that date range is logical and not in future."""
+
+    today = dt.date.today()
+    if end_date < start_date:
+        raise ValueError("End date must be after start date.")
+    if start_date > today or end_date > today:
+        raise ValueError("Dates cannot be in the future.")
+
+
 def process_urls(urls, start_date_str="2025-01-01", end_date_str="2025-06-10"):
+    """
+    Fetch article content from Media Cloud using URLs.
+
+    Args:
+        urls: List of article URLs
+        start_date_str: Start date (YYYY-MM-DD)
+        end_date_str: End date (YYYY-MM-DD)
+
+    Returns:
+        DataFrame with columns ['id', 'url', 'text']
+    """
     # Parse date strings
     try:
         start_date = dt.datetime.strptime(start_date_str, "%Y-%m-%d").date()
         end_date = dt.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        validate_dates(start_date, end_date)
     except ValueError as e:
         raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {e}")
 
@@ -261,6 +302,7 @@ def main():
     generate_predictions(args.model_dir, df, args.batch_size)
 
     # Save with logging
+    logger.info(f"Number of failed articles: {len(urls) - len(df)}")
     df.to_csv(args.output_file, index=False)
     logger.info(f"Predictions saved to: {args.output_file}")
     logger.info(f"Processed {len(df)} articles successfully")
@@ -273,5 +315,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# "experiments/project_1/20250806_103847/models/20250806_123513_000"
