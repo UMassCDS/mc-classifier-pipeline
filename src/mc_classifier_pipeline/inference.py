@@ -27,10 +27,9 @@ directory_api = mediacloud.api.DirectoryApi(api_key)
 f"Using Media Cloud python client v{version('mediacloud')}"
 
 
-
 def build_inference_parser():
     """Build argument parser for inference script."""
-    
+
     description = """
 Run inference on articles from URLs using trained models.
 
@@ -49,55 +48,33 @@ Examples:
         --start-date 2025-01-01 \\
         --end-date 2025-06-01
     """
-    
-    parser = ArgumentParser(
-        description=description,
-        formatter_class=RawDescriptionHelpFormatter  
-    )
 
-    parser.add_argument(
-        "--url-file",
-        type=Path,
-        required=True,
-        help = "Path to the file with list of urls"
-    )
+    parser = ArgumentParser(description=description, formatter_class=RawDescriptionHelpFormatter)
 
-    parser.add_argument(
-        "--model-dir",
-        type = Path,
-        required=True,
-        help = "Path to the trained model"
-    )
+    parser.add_argument("--url-file", type=Path, required=True, help="Path to the file with list of urls")
+
+    parser.add_argument("--model-dir", type=Path, required=True, help="Path to the trained model")
     parser.add_argument(
         "--output-file",
         type=Path,
         default="predictions.csv",
-        help="Output CSV file for predictions (default: predictions.csv)"
+        help="Output CSV file for predictions (default: predictions.csv)",
+    )
+    parser.add_argument("--batch-size", type=int, default=32, help="Batch size for model inference (default: 32)")
+    parser.add_argument(
+        "--start-date", type=str, default="2025-01-01", help="Start date for Media Cloud search (YYYY-MM-DD)"
     )
     parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=32,
-        help="Batch size for model inference (default: 32)"
-    )
-    parser.add_argument(
-        "--start-date",
-        type=str,
-        default="2025-01-01",
-        help="Start date for Media Cloud search (YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--end-date", 
-        type=str,
-        default="2025-06-10",
-        help="End date for Media Cloud search (YYYY-MM-DD)"
+        "--end-date", type=str, default="2025-06-10", help="End date for Media Cloud search (YYYY-MM-DD)"
     )
 
     return parser
 
+
 def parse_args():
     parser = build_inference_parser()
     return parser.parse_args()
+
 
 def detect_framework(path):
     meta_path = os.path.join(path, "metadata.json")
@@ -134,6 +111,7 @@ def detect_framework(path):
 
     return framework
 
+
 def predict_labels_hf(
     model_dir: str,
     texts: List[str],
@@ -157,6 +135,7 @@ def predict_labels_hf(
     logger.debug("HuggingFace model cleaned up from memory")
 
     return predictions
+
 
 def predict_labels_sklearn(
     model_dir: str,
@@ -214,8 +193,8 @@ def generate_predictions(model_dir, df, batch_size):
         y_pred = predict_labels_sklearn(model_dir, texts)
     else:
         raise RuntimeError(f"Unknown framework tag for {model_dir}: {framework}")
-    
-    if(y_pred is not None):
+
+    if y_pred is not None:
         df["prediction"] = y_pred
     _cleanup_memory()
 
@@ -227,7 +206,6 @@ def process_urls(urls, start_date_str="2025-01-01", end_date_str="2025-06-10"):
         end_date = dt.datetime.strptime(end_date_str, "%Y-%m-%d").date()
     except ValueError as e:
         raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {e}")
-    
 
     articles = []
     failed_count = 0
@@ -237,7 +215,7 @@ def process_urls(urls, start_date_str="2025-01-01", end_date_str="2025-06-10"):
             my_query = f'url:"{url}"'
             results = search_api.story_list(my_query, start_date, end_date)
             if results and len(results[0]) > 0:
-                story_id = results[0][0]['id']
+                story_id = results[0][0]["id"]
                 articles.append(search_api.story(story_id))
             else:
                 logger.warning(f"No story found for URL: {url}")
@@ -248,14 +226,12 @@ def process_urls(urls, start_date_str="2025-01-01", end_date_str="2025-06-10"):
             continue
 
     logger.info(f"Successfully fetched {len(articles)} articles, {failed_count} failed")
-    
+
     if not articles:
         raise ValueError("No articles were successfully fetched")
-        
+
     df = pd.DataFrame(articles)[["id", "url", "text"]]
     return df
-    
-
 
 
 def main():
@@ -264,20 +240,18 @@ def main():
     # Validate inputs
     if not args.url_file.exists():
         raise FileNotFoundError(f"URL file not found: {args.url_file}")
-    
+
     if not args.model_dir.exists():
         raise FileNotFoundError(f"Model directory not found: {args.model_dir}")
 
     # Read and validate URLs
     with open(args.url_file, "r") as f:
         urls = [url.strip() for url in f if url.strip()]
-    
+
     if not urls:
         raise ValueError("No valid URLs found in the file")
-    
+
     logger.info(f"Processing {len(urls)} URLs with model: {args.model_dir}")
-
-
 
     df = process_urls(urls, args.start_date, args.end_date)
     # Add model info to output
@@ -295,9 +269,9 @@ def main():
     if "prediction" in df.columns:
         prediction_counts = df["prediction"].value_counts()
         logger.info(f"Prediction distribution:\n{prediction_counts}")
-    
+
 
 if __name__ == "__main__":
     main()
 
-#"experiments/project_1/20250806_103847/models/20250806_123513_000"
+# "experiments/project_1/20250806_103847/models/20250806_123513_000"
