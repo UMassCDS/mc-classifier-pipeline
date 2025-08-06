@@ -6,7 +6,7 @@ import os
 import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
-from typing import Optional, Dict, List, Tuple, Any
+from typing import Optional, Dict, List, Tuple, Any, Union
 
 
 import pandas as pd
@@ -51,6 +51,24 @@ def is_multi_label_from_config(label_config: str) -> bool:
     except Exception:
         pass
     return False
+
+
+def extract_labels_by_category_from_config(label_config):
+    """Extract labels grouped by category from Label Studio config"""
+
+    root = ET.fromstring(label_config)
+    label_categories = {}
+
+    for choices in root.findall(".//Choices"):
+        category_name = choices.get("name")
+        choice_values = [choice.get("value") for choice in choices.findall("Choice")]
+        # Check multi-label for THIS specific choices element
+        is_multi_label = choices.get("choice", "single") == "multiple"
+
+        if category_name and choice_values:
+            label_categories[category_name] = {"labels": choice_values, "is_multi_label": is_multi_label}
+
+    return label_categories
 
 
 def get_project_info(client: LabelStudio, project_id: int) -> Dict[str, Any]:
@@ -133,22 +151,26 @@ def download_tasks_and_annotations(client: LabelStudio, project_id: int) -> List
 
 
 def extract_text_and_labels(
-    tasks: List[Dict[str, Any]], target_label: Optional[str] = None, is_multi_label: bool = False
+    tasks: List[Dict[str, Any]],
+    target_label: Optional[Union[str, List[str]]] = None,
+    is_multi_label: bool = False,
+    label_categories: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Extract text and labels from Label Studio tasks for text classification.
 
     Args:
         tasks: List of tasks with annotations
-        target_label: Specific label to target (if annotation config supports multiple choices)
+        target_label: Specific label(s) to target - can be a category name, specific label, or list of labels
         is_multi_label: Boolean indicating if this is a multi-label classification task
+        label_categories: Optional label categories info for preserving structure
 
     Returns:
         List of records with text and labels suitable for classification
     """
     logger.info(f"Extracting text and labels from {len(tasks)} tasks")
     if target_label:
-        logger.info(f"Targeting specific label: '{target_label}'")
+        logger.info(f"Targeting label(s): '{target_label}'")
 
     records = []
     skipped_count = 0
@@ -188,16 +210,41 @@ def extract_text_and_labels(
                         elif isinstance(value, str):
                             labels.append(value)
 
-            # Filter by target label if specified
+            # Filter by target label(s) if specified
             if target_label:
-                labels = [
-                    label for label in labels if isinstance(label, str) and target_label.lower() in label.lower()
-                ]
+                if isinstance(target_label, list):
+                    # target_label is a list of specific labels to keep
+                    labels = [label for label in labels if label in target_label]
+                else:
+                    # target_label is a single string - could be specific label or category
+                    # Keep existing string matching logic for backward compatibility
+                    labels = [
+                        label for label in labels if isinstance(label, str) and target_label.lower() in label.lower()
+                    ]
 
             # Create record if we have labels
             if labels:
                 if is_multi_label:
-                    label = labels
+                    # For multi-label, preserve category structure when no target specified
+                    if target_label is None and label_categories:
+                        # Group labels by category to preserve structure
+                        categorized_labels = {}
+                        label_to_category = {}
+                        for cat_name, cat_info in label_categories.items():
+                            for label_name in cat_info["labels"]:
+                                label_to_category[label_name] = cat_name
+
+                        for label_name in labels:
+                            if label_name in label_to_category:
+                                cat_name = label_to_category[label_name]
+                                if cat_name not in categorized_labels:
+                                    categorized_labels[cat_name] = []
+                                categorized_labels[cat_name].append(label_name)
+
+                        label = categorized_labels
+                    else:
+                        # Regular multi-label (target specified or simple case)
+                        label = labels
                 else:
                     label = labels[0] if labels else None
 
@@ -222,9 +269,21 @@ def extract_text_and_labels(
 
     if records:
         if isinstance(records[0]["label"], str):
+            # Simple string labels
             label_counts = Counter(record["label"] for record in records)
+        elif isinstance(records[0]["label"], dict):
+            # Categorized labels format: {"sentiment": ["Positive"], "tags": ["Opinion"]}
+            all_labels = []
+            for record in records:
+                label_dict = record["label"]
+                for category, category_labels in label_dict.items():
+                    if isinstance(category_labels, list):
+                        all_labels.extend(category_labels)
+                    else:
+                        all_labels.append(category_labels)
+            label_counts = Counter(all_labels)
         else:
-            # Handle multi-label tasks
+            # Handle multi-label tasks (list format)
             def flatten_labels(labels):
                 flat = []
                 for label in labels:
@@ -366,6 +425,9 @@ def create_metadata(
     train_records: List[Dict[str, Any]],
     test_records: List[Dict[str, Any]],
     args: argparse.Namespace,
+    label_categories: Dict[str, Any],
+    overall_is_multi_label: bool,
+    actual_is_multi_label: bool,
 ) -> Dict[str, Any]:
     """
     Create metadata dictionary tracking experiment details.
@@ -375,18 +437,47 @@ def create_metadata(
         train_records: Training data records
         test_records: Test data records
         args: Command line arguments
+        label_categories: Label categories extracted from config
+        overall_is_multi_label: Overall multi-label setting
+        actual_is_multi_label: The actual multi-label setting used for extraction
 
     Returns:
         Metadata dictionary
     """
-    # Calculate label distributions
-    train_labels = Counter()
-    test_labels = Counter()
 
-    if train_records and isinstance(train_records[0]["label"], str):
-        train_labels = Counter(record["label"] for record in train_records)
-    if test_records and isinstance(test_records[0]["label"], str):
-        test_labels = Counter(record["label"] for record in test_records)
+    # Calculate label distributions
+    def count_labels_by_category(records, label_categories):
+        """Count labels grouped by category"""
+        # Create reverse mapping: label -> category
+        label_to_category = {}
+        for category, info in label_categories.items():
+            for label in info["labels"]:
+                label_to_category[label] = category
+
+        category_counts = {category: Counter() for category in label_categories.keys()}
+
+        for record in records:
+            label = record["label"]
+
+            if isinstance(label, dict):
+                # Categorized labels (Scenarios 4 & 5)
+                for cat_name, cat_labels in label.items():
+                    if cat_name in category_counts:
+                        for label in cat_labels:
+                            category_counts[cat_name][label] += 1
+            else:
+                # Regular labels (string or list)
+                labels_to_count = [label] if isinstance(label, str) else label
+
+                for label in labels_to_count:
+                    if label in label_to_category:
+                        category = label_to_category[label]
+                        category_counts[category][label] += 1
+
+        return {cat: dict(counts) for cat, counts in category_counts.items() if counts}
+
+    train_labels = count_labels_by_category(train_records, label_categories) if train_records else {}
+    test_labels = count_labels_by_category(test_records, label_categories) if test_records else {}
 
     # Compute Label Studio task id range
     all_records = (train_records or []) + (test_records or [])
@@ -409,10 +500,11 @@ def create_metadata(
         },
         "classification_task": {
             "target_label": getattr(args, "target_label", None),
-            "task_type": "text_classification",
-            "train_label_distribution": dict(train_labels),
-            "test_label_distribution": dict(test_labels),
-            "unique_labels": list(set(list(train_labels.keys()) + list(test_labels.keys()))),
+            "task_type": "multi_label_classification" if actual_is_multi_label else "single_label_classification",
+            "label_categories": label_categories,
+            "overall_is_multi_label": overall_is_multi_label,
+            "train_label_distribution": train_labels,
+            "test_label_distribution": test_labels,
         },
         "label_studio": {
             "project_id": args.project_id,
@@ -572,15 +664,42 @@ def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> Pat
     # Get project information
     project_info = get_project_info(client, args.project_id)
 
-    # Determine if this is a multi-label task from the label configuration
-    is_multi_label = is_multi_label_from_config(project_info["label_config"])
-    logger.info(f"Task type: {'multi-label' if is_multi_label else 'single-label'}")
+    # Extract label categories from config (this gives you per-category multi-label info)
+    label_categories = extract_labels_by_category_from_config(project_info["label_config"])
+    logger.info(f"Label categories found: {list(label_categories.keys())}")
+    for category, info in label_categories.items():
+        logger.info(f"  {category}: {info['labels']} ({'multi-label' if info['is_multi_label'] else 'single-label'})")
+
+    # Determine overall multi-label setting
+    overall_is_multi_label = is_multi_label_from_config(project_info["label_config"])
+    logger.info(f"Overall task type: {'multi-label' if overall_is_multi_label else 'single-label'}")
 
     # Download tasks and annotations
     tasks = download_tasks_and_annotations(client, args.project_id)
 
-    # Extract text and labels
-    records = extract_text_and_labels(tasks, args.target_label, is_multi_label)
+    # Resolve target_label and determine appropriate settings
+    if args.target_label and args.target_label in label_categories:
+        # User specified a category like 'sentiment'
+        category_info = label_categories[args.target_label]
+        target_labels = category_info["labels"]  # ['Positive', 'Negative', 'Neutral']
+        is_multi_label = category_info["is_multi_label"]
+        logger.info(f"Using category '{args.target_label}': {target_labels}")
+        logger.info(f"Category is {'multi-label' if is_multi_label else 'single-label'}")
+
+        # Extract records with the specific labels from this category
+        records = extract_text_and_labels(tasks, target_labels, is_multi_label, label_categories)
+
+    elif args.target_label:
+        # User specified a specific label like 'Positive'
+        logger.info(f"Using specific label: '{args.target_label}'")
+        is_multi_label = False
+        records = extract_text_and_labels(tasks, args.target_label, is_multi_label, label_categories)
+
+    else:
+        # No target specified - use overall settings
+        logger.info("No target label specified, extracting all labels")
+        is_multi_label = overall_is_multi_label
+        records = extract_text_and_labels(tasks, None, is_multi_label, label_categories)
 
     if not records:
         logger.error("No labeled records found. Cannot create train/test split.")
@@ -594,8 +713,10 @@ def run_preprocessing_pipeline(args: Optional[argparse.Namespace] = None) -> Pat
         train_records, test_records, args.output_dir, args.project_id, args.experiment_name
     )
 
-    # Create and save metadata
-    metadata = create_metadata(project_info, train_records, test_records, args)
+    # Create and save metadata (now includes label categories)
+    metadata = create_metadata(
+        project_info, train_records, test_records, args, label_categories, overall_is_multi_label, is_multi_label
+    )
     save_metadata(metadata, experiment_dir)
 
     logger.info("Preprocessing pipeline completed successfully")
