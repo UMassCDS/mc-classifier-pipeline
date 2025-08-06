@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from argparse import RawDescriptionHelpFormatter
 import gc
 import logging
 from pathlib import Path
@@ -10,6 +11,7 @@ import datetime as dt
 import json
 import pandas as pd
 from typing import List, Optional
+from tqdm import tqdm
 
 from mc_classifier_pipeline import utils
 
@@ -27,20 +29,68 @@ f"Using Media Cloud python client v{version('mediacloud')}"
 
 
 def build_inference_parser():
-    parser = ArgumentParser(
+    """Build argument parser for inference script."""
+    
+    description = """
+Run inference on articles from URLs using trained models.
 
+Examples:
+    # Basic usage
+    python -m src.mc_classifier_pipeline.inference \\
+        --url-file url_list.txt \\
+        --model-dir experiments/project_1/20250806_103847/models/20250806_123513_000
+
+    # With custom parameters
+    python -m src.mc_classifier_pipeline.inference \\
+        --url-file my_urls.txt \\
+        --model-dir models/bert_model \\
+        --output-file my_predictions.csv \\
+        --batch-size 16 \\
+        --start-date 2025-01-01 \\
+        --end-date 2025-06-01
+    """
+    
+    parser = ArgumentParser(
+        description=description,
+        formatter_class=RawDescriptionHelpFormatter  
     )
 
     parser.add_argument(
         "--url-file",
         type=Path,
+        required=True,
         help = "Path to the file with list of urls"
     )
 
     parser.add_argument(
         "--model-dir",
         type = Path,
+        required=True,
         help = "Path to the trained model"
+    )
+    parser.add_argument(
+        "--output-file",
+        type=Path,
+        default="predictions.csv",
+        help="Output CSV file for predictions (default: predictions.csv)"
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=32,
+        help="Batch size for model inference (default: 32)"
+    )
+    parser.add_argument(
+        "--start-date",
+        type=str,
+        default="2025-01-01",
+        help="Start date for Media Cloud search (YYYY-MM-DD)"
+    )
+    parser.add_argument(
+        "--end-date", 
+        type=str,
+        default="2025-06-10",
+        help="End date for Media Cloud search (YYYY-MM-DD)"
     )
 
     return parser
@@ -58,7 +108,6 @@ def detect_framework(path):
             with open(meta_path, "r", encoding="utf-8") as f:
                 meta = json.load(f)
             fw = str(meta.get("framework", "")).strip().lower()
-            logger.info(f"framework is {fw}")
             if fw in {"hf", "transformers"}:
                 framework = "hf"
                 logger.debug(f"Detected HuggingFace model from metadata: {path}")
@@ -150,7 +199,7 @@ def _cleanup_memory():
     logger.debug("Memory cleanup completed")
 
 
-def generate_predictions(model_dir, df):
+def generate_predictions(model_dir, df, batch_size):
     framework = detect_framework(model_dir)
     texts = list(df["text"])
     y_pred = None
@@ -159,8 +208,7 @@ def generate_predictions(model_dir, df):
         y_pred = predict_labels_hf(
             model_dir,
             texts,
-            max_length=None,  # used if provided; otherwise per-model metadata/default
-            batch_size=32,
+            batch_size=batch_size,
         )
     elif framework == "sklearn":
         y_pred = predict_labels_sklearn(model_dir, texts)
@@ -172,18 +220,38 @@ def generate_predictions(model_dir, df):
     _cleanup_memory()
 
 
-def process_urls(urls):
-    articles = []
-    #urls = urls[:5]
-    for url in urls:
-        my_query = f'url:"{url}"'
-        start_date = dt.date(2025, 1, 1)
-        end_date = dt.date(2025, 6, 10)
-        results = search_api.story_list(my_query, start_date, end_date)
-        if(results and len(results[0]) > 0):
-            story_id = results[0][0]['id']
-            articles.append(search_api.story(story_id))
+def process_urls(urls, start_date_str="2025-01-01", end_date_str="2025-06-10"):
+    # Parse date strings
+    try:
+        start_date = dt.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = dt.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except ValueError as e:
+        raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {e}")
+    
 
+    articles = []
+    failed_count = 0
+
+    for url in tqdm(urls, desc="Fetching articles"):
+        try:
+            my_query = f'url:"{url}"'
+            results = search_api.story_list(my_query, start_date, end_date)
+            if results and len(results[0]) > 0:
+                story_id = results[0][0]['id']
+                articles.append(search_api.story(story_id))
+            else:
+                logger.warning(f"No story found for URL: {url}")
+                failed_count += 1
+        except Exception as e:
+            logger.error(f"Failed to fetch story for URL {url}: {e}")
+            failed_count += 1
+            continue
+
+    logger.info(f"Successfully fetched {len(articles)} articles, {failed_count} failed")
+    
+    if not articles:
+        raise ValueError("No articles were successfully fetched")
+        
     df = pd.DataFrame(articles)[["id", "url", "text"]]
     return df
     
@@ -193,20 +261,41 @@ def process_urls(urls):
 def main():
     args = parse_args()
 
-    url_file = args.url_file
-    urls = []
-    with open(url_file, "r") as f:
-        urls = [url.strip() for url in f]
-
-    df = process_urls(urls)
-    generate_predictions(args.model_dir, df)
-
-    df.to_csv("predictions.csv", index=False)
+    # Validate inputs
+    if not args.url_file.exists():
+        raise FileNotFoundError(f"URL file not found: {args.url_file}")
     
+    if not args.model_dir.exists():
+        raise FileNotFoundError(f"Model directory not found: {args.model_dir}")
+
+    # Read and validate URLs
+    with open(args.url_file, "r") as f:
+        urls = [url.strip() for url in f if url.strip()]
+    
+    if not urls:
+        raise ValueError("No valid URLs found in the file")
+    
+    logger.info(f"Processing {len(urls)} URLs with model: {args.model_dir}")
 
 
 
+    df = process_urls(urls, args.start_date, args.end_date)
+    # Add model info to output
+    df["model_used"] = str(args.model_dir)
+    df["prediction_timestamp"] = dt.datetime.now().isoformat()
 
+    generate_predictions(args.model_dir, df, args.batch_size)
+
+    # Save with logging
+    df.to_csv(args.output_file, index=False)
+    logger.info(f"Predictions saved to: {args.output_file}")
+    logger.info(f"Processed {len(df)} articles successfully")
+
+    # Print summary
+    if "prediction" in df.columns:
+        prediction_counts = df["prediction"].value_counts()
+        logger.info(f"Prediction distribution:\n{prediction_counts}")
+    
 
 if __name__ == "__main__":
     main()
