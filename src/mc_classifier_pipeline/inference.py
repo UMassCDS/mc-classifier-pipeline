@@ -81,7 +81,7 @@ def parse_args():
 
 def detect_framework(path):
     """
-    Detect ML framework (HuggingFace or sklearn) from model directory.
+    Detect ML framework (Hugging Face Transformers or scikit-learn) from a model directory.
 
     Args:
         path: Path to model directory
@@ -152,7 +152,7 @@ def predict_labels_sklearn(
     model_dir: str,
     texts: List[str],
 ) -> List[str]:
-    """Use SKNaiveBayesTextClassifier for sklearn predictions."""
+    """Use `SKNaiveBayesTextClassifier` for scikit-learn predictions."""
     from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module
 
     logger.debug(f"Loading sklearn model from: {model_dir}")
@@ -191,12 +191,12 @@ def _cleanup_memory():
 
 def generate_predictions(model_dir, df, batch_size):
     """
-    Generate predictions using appropriate framework and add to DataFrame.
+    Generate predictions using the appropriate framework and add them to the DataFrame.
 
     Args:
-        model_dir: Path to trained model
-        df: DataFrame with 'text' column
-        batch_size: Batch size for inference
+        model_dir: Path to trained model.
+        df: DataFrame with a 'text' column; predictions written to 'prediction'.
+        batch_size: Batch size for inference (HF only).
     """
     framework = detect_framework(model_dir)
     texts = list(df["text"])

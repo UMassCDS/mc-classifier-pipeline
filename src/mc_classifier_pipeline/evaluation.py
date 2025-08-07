@@ -26,7 +26,7 @@ def load_test_data(
     label_column: str,
 ) -> pd.DataFrame:
     """
-    Load test.csv and validate required columns.
+    Load `test.csv` from an experiment directory and validate required columns.
     """
     test_path = os.path.join(experiment_dir, "test.csv")
     if not os.path.exists(test_path):
@@ -40,7 +40,7 @@ def load_test_data(
 
 def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
     """
-    Scan <models_root> for valid model directories.
+    Scan a models root directory for valid model directories.
 
     A directory qualifies if it has:
       - Hugging Face:  config.json  AND  label_encoder.pkl
@@ -132,7 +132,7 @@ def predict_labels_sklearn(
     model_dir: str,
     texts: List[str],
 ) -> List[str]:
-    """Use SKNaiveBayesTextClassifier for sklearn predictions."""
+    """Use `SKNaiveBayesTextClassifier` for scikit-learn predictions."""
     from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module
 
     logger.debug(f"Loading sklearn model from: {model_dir}")
@@ -202,8 +202,8 @@ def evaluate_models(
     max_length: Optional[int],
 ) -> Tuple[pd.DataFrame, Dict]:
     """
-    Evaluate all models under <experiment_dir>/models against test.csv using weighted metrics.
-    Produces a leaderboard DataFrame and a summary dict.
+    Evaluate all models under `<experiment_dir>/models` against `test.csv` using weighted metrics.
+    Produces a leaderboard DataFrame and a structured summary dictionary.
     """
     logger.info(f"Starting model evaluation for experiment: {experiment_dir}")
     models_root = os.path.join(experiment_dir, "models")
@@ -333,7 +333,7 @@ def evaluate_models(
 
 def write_outputs(models_root: str, results: pd.DataFrame, summary: Dict):
     """
-    Write results.csv and evaluation_summary.json into the models/ folder.
+    Write `results.csv` and `evaluation_summary.json` into the `models/` folder.
     """
     os.makedirs(models_root, exist_ok=True)
     results_path = os.path.join(models_root, "results.csv")

@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 
 def build_trainer_parser(add_help=True):
     """
-    Build the argument parser for the trainer.
-    
-    Example usage:
-        python -m src.mc_classifier_pipeline.trainer \
+    Build the argument parser for the model training entry-point.
+
+    Examples:
+        python -m mc_classifier_pipeline.trainer \
             --experiment-dir experiments/project_42/20250728_113000 \
             --models-config configs/quick_test.json
-        
-        # Train only specific models:
-        python -m src.mc_classifier_pipeline.trainer \
+
+        # Train only specific models
+        python -m mc_classifier_pipeline.trainer \
             --experiment-dir experiments/project_42/20250728_113000 \
             --models-config configs/quick_test.json \
             --model-names fast_bert quick_nb
@@ -82,11 +82,11 @@ def load_models_config(config_file: str, selected_models: Optional[List[str]] = 
     Load models from a configuration file.
 
     Args:
-        config_file: Path to JSON config file with model definitions
-        selected_models: Optional list of model names to train (if None, trains all)
+        config_file: Path to JSON config file with model definitions.
+        selected_models: Optional list of model names to train (if None, trains all).
 
     Returns:
-        List of model configuration dictionaries
+        List of model configuration dictionaries.
     """
     try:
         with open(config_file, "r", encoding="utf-8") as f:
@@ -125,6 +125,8 @@ def train_model_from_config(
 ) -> Path:
     """
     Train a single model directly from its configuration.
+
+    Returns the output directory path where the model artifacts are saved.
     """
     model_type = model_config["model_type"]
     model_params = model_config.get("model_params", {})
@@ -176,7 +178,9 @@ def train_model_from_config(
 def train_all_models(
     experiment_dir: Path, model_configs: List[Dict[str, Any]], text_column: str, label_column: str
 ) -> List[Path]:
-    """Train all models from their configurations."""
+    """
+    Train all models from their configurations and write a training summary JSON.
+    """
     logger.info(f"Starting training for {len(model_configs)} models")
     models_root = experiment_dir / "models"
     models_root.mkdir(parents=True, exist_ok=True)

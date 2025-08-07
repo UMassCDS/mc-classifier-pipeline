@@ -41,7 +41,7 @@ def validate_environment_variables() -> Tuple[str, str]:
 
 def is_multi_label_from_config(label_config: str) -> bool:
     """
-    Parse the Label Studio XML config and return True if multi-label, else False.
+    Parse the Label Studio XML config and return True if multi-label; else False.
     """
     try:
         root = ET.fromstring(label_config)
@@ -58,11 +58,11 @@ def get_project_info(client: LabelStudio, project_id: int) -> Dict[str, Any]:
     Get project information and labeling configuration.
 
     Args:
-        client: Label Studio client instance
-        project_id: Label Studio project ID
+        client: Label Studio client instance.
+        project_id: Label Studio project ID.
 
     Returns:
-        Dictionary containing project information
+        Dictionary containing project information.
     """
     logger.info(f"Fetching project information for project {project_id}")
 
@@ -90,11 +90,11 @@ def download_tasks_and_annotations(client: LabelStudio, project_id: int) -> List
     Download all tasks and their annotations from a Label Studio project.
 
     Args:
-        client: Label Studio client instance
-        project_id: Label Studio project ID
+        client: Label Studio client instance.
+        project_id: Label Studio project ID.
 
     Returns:
-        List of tasks with their annotations
+        List of tasks with their annotations.
     """
     logger.info(f"Downloading tasks and annotations from project {project_id}")
 
@@ -139,12 +139,12 @@ def extract_text_and_labels(
     Extract text and labels from Label Studio tasks for text classification.
 
     Args:
-        tasks: List of tasks with annotations
-        target_label: Specific label to target (if annotation config supports multiple choices)
-        is_multi_label: Boolean indicating if this is a multi-label classification task
+        tasks: List of tasks with annotations.
+        target_label: Specific label to target (if annotation config supports multiple choices).
+        is_multi_label: Boolean indicating if this is a multi-label classification task.
 
     Returns:
-        List of records with text and labels suitable for classification
+        List of records with text and labels suitable for classification.
     """
     logger.info(f"Extracting text and labels from {len(tasks)} tasks")
     if target_label:
@@ -255,12 +255,12 @@ def create_train_test_split(
     Create stratified train/test split maintaining label balance.
 
     Args:
-        records: List of labeled records
-        train_ratio: Proportion of data for training (0.0 to 1.0)
-        random_state: Random seed for reproducibility
+        records: List of labeled records.
+        train_ratio: Proportion of data for training (0.0 to 1.0).
+        random_state: Random seed for reproducibility.
 
     Returns:
-        Tuple of (train_records, test_records)
+        Tuple of (train_records, test_records).
     """
     logger.info(f"Creating train/test split with ratio {train_ratio:.2f}")
 
@@ -315,17 +315,18 @@ def save_data_splits(
     Save train and test data to CSV files in a timestamped experiment folder.
 
     Args:
-        train_records: Training data records
-        test_records: Test data records
-        output_dir: Base output directory
-        experiment_name: Optional experiment name (timestamp used if not provided)
+        train_records: Training data records.
+        test_records: Test data records.
+        output_dir: Base output directory.
+        project_id: Label Studio project ID used to build a namespaced experiment path.
+        experiment_name: Optional experiment name (timestamp used if not provided).
 
     Returns:
-        Path to the created experiment directory
+        Path to the created experiment directory.
 
     Raises:
-        OSError: If directory creation or file writing fails
-        ValueError: If data cannot be converted to DataFrame
+        OSError: If directory creation or file writing fails.
+        ValueError: If data cannot be converted to DataFrame.
     """
     root_dir = Path(output_dir)
 
@@ -371,13 +372,13 @@ def create_metadata(
     Create metadata dictionary tracking experiment details.
 
     Args:
-        project_info: Label Studio project information
-        train_records: Training data records
-        test_records: Test data records
-        args: Command line arguments
+        project_info: Label Studio project information.
+        train_records: Training data records.
+        test_records: Test data records.
+        args: Command line arguments.
 
     Returns:
-        Metadata dictionary
+        Metadata dictionary.
     """
     # Calculate label distributions
     train_labels = Counter()
@@ -433,12 +434,12 @@ def save_metadata(metadata: Dict[str, Any], experiment_dir: Path) -> None:
     Save experiment metadata to JSON file.
 
     Args:
-        metadata: Metadata dictionary
-        experiment_dir: Experiment directory path
+        metadata: Metadata dictionary.
+        experiment_dir: Experiment directory path.
 
     Raises:
-        OSError: If file writing fails
-        TypeError: If metadata cannot be serialized to JSON
+        OSError: If file writing fails.
+        TypeError: If metadata cannot be serialized to JSON.
     """
     metadata_file = experiment_dir / "metadata.json"
 
@@ -468,10 +469,10 @@ def build_argument_parser(add_help: bool = True) -> argparse.ArgumentParser:
     Build the argument parser for the preprocessing script.
 
     Args:
-        add_help: Whether to add the default help argument
+        add_help: Whether to add the default help argument.
 
     Returns:
-        Argument parser instance
+        Argument parser instance.
     """
     parser = argparse.ArgumentParser(
         description="Create train/test splits from Label Studio annotations for text classification",

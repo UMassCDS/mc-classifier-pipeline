@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class SKNaiveBayesTextClassifier:
-    """Naive Bayes text classifier with training and inference capabilities (scikit-learn)"""
+    """Naive Bayes text classifier with training and inference capabilities (scikit-learn)."""
 
     def __init__(self):
         self.vectorizer = TfidfVectorizer()
@@ -31,7 +31,7 @@ class SKNaiveBayesTextClassifier:
     def load_data(
         self, project_folder: str, text_column: str = "text", label_column: str = "label"
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Load train and test data from CSV files"""
+        """Load `train.csv` and `test.csv` from a project folder and validate required columns."""
         train_path = os.path.join(project_folder, "train.csv")
         test_path = os.path.join(project_folder, "test.csv")
 
@@ -58,7 +58,7 @@ class SKNaiveBayesTextClassifier:
         text_column: str = "text",
         label_column: str = "label",
     ):
-        """Prepare training and test datasets"""
+        """Prepare raw text arrays and encoded labels for training and testing."""
         # Encode labels
         all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
         self.label_encoder.fit(all_labels)
@@ -77,7 +77,7 @@ class SKNaiveBayesTextClassifier:
         return (train_texts, train_labels), (test_texts, test_labels)
 
     def compute_metrics(self, y_true, y_pred):
-        """Compute metrics for evaluation"""
+        """Compute weighted accuracy/precision/recall/F1 metrics for evaluation."""
         precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="weighted")
         accuracy = accuracy_score(y_true, y_pred)
         return {"accuracy": accuracy, "f1": f1, "precision": precision, "recall": recall}
@@ -90,7 +90,7 @@ class SKNaiveBayesTextClassifier:
         label_column: str = "label",
         hyperparams: Optional[Dict[str, Any]] = None,
     ):
-        """Train the Naive Bayes model"""
+        """Train the Naive Bayes model and persist artifacts and metadata."""
         # Default hyperparameters
         default_hyperparams = {
             "ngram_range": (1, 1),
@@ -159,7 +159,7 @@ class SKNaiveBayesTextClassifier:
 
     @classmethod
     def load_for_inference(cls, model_path: str):
-        """Load a trained model for inference"""
+        """Load a trained model from disk for inference."""
         # Load metadata
         metadata_path = os.path.join(model_path, "metadata.json")
         if not os.path.exists(metadata_path):
@@ -180,7 +180,7 @@ class SKNaiveBayesTextClassifier:
         return classifier
 
     def predict(self, texts, return_probabilities: bool = False):
-        """Make predictions on new text data"""
+        """Make predictions on new texts; optionally return probabilities (per class)."""
         if self.model is None or self.vectorizer is None:
             raise ValueError("Model not loaded. Use load_for_inference() first.")
 
@@ -195,7 +195,7 @@ class SKNaiveBayesTextClassifier:
             return predicted_labels
 
     def get_model_info(self):
-        """Get model information"""
+        """Get model metadata captured during training."""
         return self.metadata
 
 

@@ -20,7 +20,10 @@ logger = logging.getLogger(__name__)
 
 def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_studio_token: str):
     """
-    Upload a list of Label Studio tasks (already filtered) to the specified project.
+    Upload a list of Label Studio task dictionaries to a Label Studio project.
+
+    Expects each task to be in the format produced by `doc_retriever.py` when
+    writing Label Studio JSON (key `data` with `text` and optional metadata).
     """
     logger.info("Uploading %d tasks to Label Studio project %s...", len(tasks), project_id)
     if not tasks:
@@ -49,7 +52,7 @@ def upload_tasks(tasks: list, project_id: int, label_studio_host: str, label_stu
 
 def build_uploader_parser(add_help=True):
     """
-    Build the argument parser for the Label Studio uploader.
+    Build the argument parser for the Label Studio uploader CLI.
     """
 
     parser = argparse.ArgumentParser(

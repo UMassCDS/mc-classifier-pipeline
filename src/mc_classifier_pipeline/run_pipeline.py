@@ -1,9 +1,20 @@
 """
-End-to-end pipeline:
-  1. Query documents -> JSON tasks
-  2. Push those tasks to a chosen Label Studio project
-Usage example:
-  python -m mc_classifier_pipeline.run_pipeline.py --query "election" --start 2025-06-01 --end 2025-06-30 --project_id 2
+End-to-end pipeline to retrieve documents and upload them to Label Studio.
+
+Steps performed:
+  1) Retrieve Media Cloud stories matching a query and write outputs:
+     - Raw article JSON in `data/raw_articles/`
+     - Optional CSV summary via `--output`
+     - Optional Label Studio task JSON via `--label-studio-tasks`
+  2) Upload the generated tasks JSON to a specified Label Studio project.
+
+Example:
+  python -m mc_classifier_pipeline.run_pipeline \
+    --query "election" \
+    --start-date 2025-06-01 \
+    --end-date 2025-06-30 \
+    --project_id 2 \
+    --label-studio-tasks data/labelstudio_tasks.json
 """
 
 from __future__ import annotations

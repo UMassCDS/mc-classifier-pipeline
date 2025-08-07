@@ -115,12 +115,13 @@ def search_mediacloud_by_query(
     Search Media Cloud for articles using a query string, avoiding re-retrieval of existing articles.
 
     Args:
-        query: Search query string
-        start_date: Start date for search
-        end_date: End date for search
-        limit: Maximum number of results to return
-        articles_index: Dictionary of already retrieved articles
-        raw_articles_dir: Directory where existing articles are stored
+        query: Search query string.
+        start_date: Start date for search.
+        end_date: End date for search.
+        limit: Maximum number of new articles to return.
+        articles_index: Dictionary of already retrieved articles.
+        raw_articles_dir: Directory where existing articles are stored.
+        collection_ids: Optional list of Media Cloud collection IDs to restrict the search.
 
     Returns:
         List of article dictionaries with URLs and metadata
@@ -274,7 +275,7 @@ def save_articles_from_query(
 
 def analyze_search_results(articles: list):
     """
-    Calculates and logs summary statistics for the retrieved articles.
+    Calculate and log summary statistics for the retrieved articles.
 
     This includes overall success rate, a breakdown of article statuses,
     text length statistics, and a language breakdown.
@@ -319,7 +320,7 @@ def analyze_search_results(articles: list):
 
 def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
     """
-    Build the argument parser for the Label Studio uploader.
+    Build the argument parser for document retrieval from Media Cloud.
 
     Args:
         add_help: Whether to add the default help argument
@@ -414,16 +415,18 @@ def build_arg_parser(add_help: bool = True) -> argparse.ArgumentParser:
 
 
 def parse_arguments():
-    """Parse command line arguments."""
+    """Parse command-line arguments for document retrieval."""
     return build_arg_parser().parse_args()
 
 
 def main(args: Optional[argparse.Namespace] = None):
     """
-    Main function to run the Media Cloud query search and article processing pipeline.
-    This function parses command-line arguments, loads a persistent index of articles,
-    searches Media Cloud for new articles based on a query, saves the results,
-    and provides a summary analysis.
+    Run the Media Cloud query search and article processing pipeline.
+
+    This function parses arguments (if not provided), loads a persistent index of
+    previously retrieved articles, searches Media Cloud for new articles based on a
+    query and date range, optionally writes per-article JSON, writes an output CSV and/or
+    Label Studio task JSON, updates the index, and logs a summary analysis.
     """
     if args is None:
         args = parse_arguments()

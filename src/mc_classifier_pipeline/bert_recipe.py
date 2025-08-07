@@ -31,7 +31,10 @@ logger = logging.getLogger(__name__)
 
 
 class TextClassificationDataset(Dataset):
-    """Custom dataset for text classification"""
+    """Custom dataset for text classification.
+
+    Expects tokenized inputs and integer-encoded labels.
+    """
 
     def __init__(self, texts, labels, tokenizer, max_length=512):
         self.texts = texts
@@ -73,7 +76,7 @@ class BERTTextClassifier:
     def load_data(
         self, project_folder: str, text_column: str = "text", label_column: str = "label"
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Load train and test data from CSV files"""
+        """Load `train.csv` and `test.csv` from a project folder and validate required columns."""
         train_path = os.path.join(project_folder, "train.csv")
         test_path = os.path.join(project_folder, "test.csv")
 
@@ -94,7 +97,7 @@ class BERTTextClassifier:
         return train_df, test_df
 
     def prepare_model(self, num_labels: int):
-        """Initialize tokenizer and model"""
+        """Initialize tokenizer and model with the given number of labels."""
         logger.info(f"Loading tokenizer and model: {self.model_name}")
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
@@ -116,7 +119,7 @@ class BERTTextClassifier:
         label_column: str = "label",
         max_length: int = 512,
     ):
-        """Prepare training and test datasets"""
+        """Prepare tokenized train and test datasets and fit a `LabelEncoder`."""
 
         # Encode labels
         all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
@@ -142,7 +145,7 @@ class BERTTextClassifier:
         return train_dataset, test_dataset
 
     def compute_metrics(self, eval_pred):
-        """Compute metrics for evaluation"""
+        """Compute weighted accuracy/precision/recall/F1 metrics for evaluation."""
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=1)
 
@@ -277,7 +280,7 @@ class BERTTextClassifier:
 
     @classmethod
     def load_for_inference(cls, model_path: str):
-        """Load a trained model for inference"""
+        """Load a trained model from disk for inference."""
 
         # Load metadata
         metadata_path = os.path.join(model_path, "metadata.json")
@@ -304,7 +307,7 @@ class BERTTextClassifier:
         return classifier
 
     def predict(self, texts, batch_size: int = 32, return_probabilities: bool = False):
-        """Make predictions on new text data"""
+        """Make predictions on new texts; optionally return probabilities."""
         if self.model is None or self.tokenizer is None:
             raise ValueError("Model not loaded. Use load_for_inference() first.")
 
@@ -349,7 +352,7 @@ class BERTTextClassifier:
             return predicted_labels
 
     def get_model_info(self):
-        """Get model information"""
+        """Get model metadata captured during training."""
         return self.metadata
 
 
