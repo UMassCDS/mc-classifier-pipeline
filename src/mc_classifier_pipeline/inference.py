@@ -1,6 +1,4 @@
 import datetime as dt
-import gc
-import json
 import logging
 import os
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
@@ -14,6 +12,9 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 
 from mc_classifier_pipeline import utils
+from mc_classifier_pipeline.prediction import ModelPredictor, cleanup_memory
+from mc_classifier_pipeline.utils import detect_model_framework
+
 
 utils.configure_logging()
 logger = logging.getLogger(__name__)
@@ -79,114 +80,33 @@ def parse_args():
     return parser.parse_args()
 
 
-def detect_framework(path):
-    """
-    Detect ML framework (HuggingFace or sklearn) from model directory.
-
-    Args:
-        path: Path to model directory
-
-    Returns:
-        str: 'hf', 'sklearn', or None if detection fails
-    """
-    meta_path = os.path.join(path, "metadata.json")
-    framework = None
-    if os.path.exists(meta_path):
-        logger.info("Opening metadata file")
-        try:
-            with open(meta_path, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-            fw = str(meta.get("framework", "")).strip().lower()
-            if fw in {"hf", "transformers"}:
-                framework = "hf"
-                logger.debug(f"Detected HuggingFace model from metadata: {path}")
-            elif fw in {"sk", "sklearn", "scikit-learn"}:
-                framework = "sklearn"
-                logger.debug(f"Detected sklearn model from metadata: {path}")
-        except Exception as e:
-            logger.warning(f"Could not read metadata.json in {path}: {e}")
-
-    # If framework not detected from metadata, try file-based detection
-    if not framework:
-        has_config = os.path.exists(os.path.join(path, "config.json"))
-        has_model_pkl = os.path.exists(os.path.join(path, "model.pkl"))
-        has_vectorizer = os.path.exists(os.path.join(path, "vectorizer.pkl"))
-
-        if has_config:
-            framework = "hf"
-            logger.debug(f"Detected HuggingFace model from config.json: {path}")
-        elif has_model_pkl and has_vectorizer:
-            framework = "sklearn"
-            logger.debug(f"Detected sklearn model from model.pkl + vectorizer.pkl: {path}")
-        else:
-            logger.warning(f"Could not determine framework for {path}")
-
-    return framework
-
-
 def predict_labels_hf(
     model_dir: str,
     texts: List[str],
     batch_size: int = 32,
 ) -> List[str]:
     """
-    Hugging Face inference: load tokenizer+model from `model_dir`,
-    run batched inference on `texts`, and inverse-transform to string labels.
+    Predict labels using HuggingFace model (legacy function for backward compatibility).
     """
-    from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
-
-    logger.debug(f"Loading HuggingFace model from: {model_dir}")
-    # Use BERTTextClassifier from bert_recipe for HF model predictions
-    classifier = BERTTextClassifier.load_for_inference(model_path=model_dir)
-    logger.debug(f"Running predictions on {len(texts)} texts with batch_size={batch_size}")
-    predictions = classifier.predict(texts=texts, return_probabilities=False)
-
-    # Explicitly delete the classifier to free memory
-    del classifier
-    logger.debug("HuggingFace model cleaned up from memory")
-
-    return predictions
+    predictor = ModelPredictor(model_dir)
+    try:
+        return predictor.predict(texts, batch_size)
+    finally:
+        predictor.cleanup()
 
 
 def predict_labels_sklearn(
     model_dir: str,
     texts: List[str],
 ) -> List[str]:
-    """Use SKNaiveBayesTextClassifier for sklearn predictions."""
-    from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier  # Import from correct module
-
-    logger.debug(f"Loading sklearn model from: {model_dir}")
-    classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path=model_dir)
-    logger.debug(f"Running sklearn predictions on {len(texts)} texts")
-    predictions = classifier.predict(texts=texts, return_probabilities=False)
-
-    # Explicitly delete the classifier to free memory
-    del classifier
-    logger.debug("Sklearn model cleaned up from memory")
-
-    return predictions
-
-
-def _cleanup_memory():
-    """Clean up memory after model evaluation"""
-
-    logger.debug("Starting memory cleanup...")
-    # Force garbage collection
-    gc.collect()
-
-    # Clear GPU memory if available
+    """
+    Predict labels using sklearn model (legacy function for backward compatibility).
+    """
+    predictor = ModelPredictor(model_dir)
     try:
-        import torch
-
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-            logger.debug("GPU memory cache cleared")
-    except ImportError:
-        # torch not available, skip GPU cleanup
-        logger.debug("PyTorch not available, skipping GPU cleanup")
-
-    logger.debug("Memory cleanup completed")
+        return predictor.predict(texts)
+    finally:
+        predictor.cleanup()
 
 
 def generate_predictions(model_dir, df, batch_size):
@@ -198,7 +118,7 @@ def generate_predictions(model_dir, df, batch_size):
         df: DataFrame with 'text' column
         batch_size: Batch size for inference
     """
-    framework = detect_framework(model_dir)
+    framework = detect_model_framework(model_dir)
     texts = list(df["text"])
     y_pred = None
 
@@ -215,7 +135,7 @@ def generate_predictions(model_dir, df, batch_size):
 
     if y_pred is not None:
         df["prediction"] = y_pred
-    _cleanup_memory()
+    cleanup_memory()
 
 
 def validate_dates(start_date, end_date):

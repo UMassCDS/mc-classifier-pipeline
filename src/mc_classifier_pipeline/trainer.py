@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
 from mc_classifier_pipeline.sk_naive_bayes_recipe import SKNaiveBayesTextClassifier
 from mc_classifier_pipeline.utils import configure_logging
+from mc_classifier_pipeline.utils import create_timestamp_dir
+
 
 # Set up logging
 configure_logging()
@@ -57,24 +59,6 @@ def build_trainer_parser(add_help=True):
 
 def parse_args():
     return build_trainer_parser().parse_args()
-
-
-# Helper: timestamp dir
-def make_timestamp_dir(parent: Path) -> Path:
-    """
-    Create a unique timestamped directory under `parent`, like 20250729_153015_001
-    """
-    base = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # Avoid collisions if called multiple times in the same second.
-    MAX_DIRECTORY_ATTEMPTS = 1000
-
-    for i in range(MAX_DIRECTORY_ATTEMPTS):
-        suffix = f"_{i:03d}"
-        p = parent / f"{base}{suffix}"
-        if not p.exists():
-            p.mkdir(parents=True, exist_ok=False)
-            return p
-    raise RuntimeError("Failed to create a unique timestamped directory")
 
 
 def load_models_config(config_file: str, selected_models: Optional[List[str]] = None) -> List[Dict[str, Any]]:
@@ -147,7 +131,7 @@ def train_model_from_config(
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
-    out_dir = make_timestamp_dir(models_root)
+    out_dir = create_timestamp_dir(models_root)
 
     # Train the model
     metadata = clf.train(

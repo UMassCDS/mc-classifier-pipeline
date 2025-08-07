@@ -1,6 +1,5 @@
 import argparse
 import datetime as dt
-import json
 import logging
 import os
 import xml.etree.ElementTree as ET
@@ -27,16 +26,8 @@ LABEL_STUDIO_TOKEN = os.getenv("LABEL_STUDIO_TOKEN")
 
 
 def validate_environment_variables() -> Tuple[str, str]:
-    missing_vars = []
-    if not LABEL_STUDIO_HOST:
-        missing_vars.append("LABEL_STUDIO_HOST")
-    if not LABEL_STUDIO_TOKEN:
-        missing_vars.append("LABEL_STUDIO_TOKEN")
-
-    if missing_vars:
-        raise ValueError(f"Missing env variables: {', '.join(missing_vars)}. set them in your .env file.")
-
-    return LABEL_STUDIO_HOST, LABEL_STUDIO_TOKEN
+    env_vars = utils.validate_environment_variables(["LABEL_STUDIO_HOST", "LABEL_STUDIO_TOKEN"])
+    return env_vars["LABEL_STUDIO_HOST"], env_vars["LABEL_STUDIO_TOKEN"]
 
 
 def is_multi_label_from_config(label_config: str) -> bool:
@@ -440,27 +431,7 @@ def save_metadata(metadata: Dict[str, Any], experiment_dir: Path) -> None:
         OSError: If file writing fails
         TypeError: If metadata cannot be serialized to JSON
     """
-    metadata_file = experiment_dir / "metadata.json"
-
-    # Convert Path objects to strings in metadata
-    def convert_paths(obj):
-        if isinstance(obj, Path):
-            return str(obj)
-        elif isinstance(obj, dict):
-            return {k: convert_paths(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [convert_paths(i) for i in obj]
-        return obj
-
-    metadata = convert_paths(metadata)
-
-    try:
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
-        logger.info(f"Metadata saved: {metadata_file}")
-    except (OSError, TypeError) as e:
-        logger.error(f"Failed to save metadata to {metadata_file}: {e}")
-        raise
+    utils.save_metadata(metadata, experiment_dir / "metadata.json")
 
 
 def build_argument_parser(add_help: bool = True) -> argparse.ArgumentParser:

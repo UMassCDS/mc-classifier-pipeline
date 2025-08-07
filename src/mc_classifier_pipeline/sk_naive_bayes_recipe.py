@@ -1,17 +1,14 @@
-import os
-import json
 import logging
 from datetime import datetime
-from typing import Dict, Optional, Tuple, Any
+from pathlib import Path
+from typing import Dict, Optional, Any
 
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from sklearn.preprocessing import LabelEncoder
-import joblib
 
+from mc_classifier_pipeline.base_classifier import BaseTextClassifier
 from mc_classifier_pipeline.utils import configure_logging
 
 # Set up logging
@@ -19,37 +16,13 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 
-class SKNaiveBayesTextClassifier:
+class SKNaiveBayesTextClassifier(BaseTextClassifier):
     """Naive Bayes text classifier with training and inference capabilities (scikit-learn)"""
 
     def __init__(self):
+        super().__init__("sklearn_naive_bayes")
         self.vectorizer = TfidfVectorizer()
         self.model = MultinomialNB()
-        self.label_encoder = LabelEncoder()
-        self.metadata = {}
-
-    def load_data(
-        self, project_folder: str, text_column: str = "text", label_column: str = "label"
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Load train and test data from CSV files"""
-        train_path = os.path.join(project_folder, "train.csv")
-        test_path = os.path.join(project_folder, "test.csv")
-
-        if not os.path.exists(train_path):
-            raise FileNotFoundError(f"Training file not found: {train_path}")
-        if not os.path.exists(test_path):
-            raise FileNotFoundError(f"Test file not found: {test_path}")
-
-        train_df = pd.read_csv(train_path)
-        test_df = pd.read_csv(test_path)
-
-        logger.info(f"Loaded {len(train_df)} training samples and {len(test_df)} test samples")
-
-        # Validate required columns
-        if text_column not in train_df.columns or label_column not in train_df.columns:
-            raise ValueError(f"Required columns '{text_column}' and '{label_column}' not found in training data")
-
-        return train_df, test_df
 
     def prepare_datasets(
         self,
@@ -59,28 +32,13 @@ class SKNaiveBayesTextClassifier:
         label_column: str = "label",
     ):
         """Prepare training and test datasets"""
-        # Encode labels
-        all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
-        self.label_encoder.fit(all_labels)
-
-        train_labels = self.label_encoder.transform(train_df[label_column])
-        test_labels = self.label_encoder.transform(test_df[label_column])
+        # Prepare labels using base class method
+        train_labels, test_labels = self.prepare_labels(train_df, test_df, label_column)
 
         train_texts = train_df[text_column].tolist()
         test_texts = test_df[text_column].tolist()
 
-        logger.info(f"Number of unique labels: {len(self.label_encoder.classes_)}")
-        logger.info(
-            f"Label mapping: {dict(zip(self.label_encoder.classes_, range(len(self.label_encoder.classes_))))}"
-        )
-
         return (train_texts, train_labels), (test_texts, test_labels)
-
-    def compute_metrics(self, y_true, y_pred):
-        """Compute metrics for evaluation"""
-        precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="weighted")
-        accuracy = accuracy_score(y_true, y_pred)
-        return {"accuracy": accuracy, "f1": f1, "precision": precision, "recall": recall}
 
     def train(
         self,
@@ -127,14 +85,8 @@ class SKNaiveBayesTextClassifier:
         y_pred = self.model.predict(X_test)
         eval_result = self.compute_metrics(test_labels, y_pred)
 
-        # Save model, vectorizer, and label encoder
-        os.makedirs(save_path, exist_ok=True)
-        joblib.dump(self.model, os.path.join(save_path, "model.pkl"))
-        joblib.dump(self.vectorizer, os.path.join(save_path, "vectorizer.pkl"))
-        joblib.dump(self.label_encoder, os.path.join(save_path, "label_encoder.pkl"))
-
         # Create metadata
-        self.metadata = {
+        metadata = {
             "framework": "naive-bayes",
             "model_type": "sklearn-naive-bayes",
             "num_labels": len(self.label_encoder.classes_),
@@ -148,9 +100,9 @@ class SKNaiveBayesTextClassifier:
             "label_column": label_column,
         }
 
-        # Save metadata
-        with open(os.path.join(save_path, "metadata.json"), "w") as f:
-            json.dump(self.metadata, f, indent=2)
+        # Save model using base class method
+        self.save_model(save_path, metadata)
+        self.is_trained = True
 
         logger.info("Training completed successfully!")
         logger.info(f"Final evaluation results: {eval_result}")
@@ -158,26 +110,27 @@ class SKNaiveBayesTextClassifier:
         return self.metadata
 
     @classmethod
-    def load_for_inference(cls, model_path: str):
-        """Load a trained model for inference"""
-        # Load metadata
-        metadata_path = os.path.join(model_path, "metadata.json")
-        if not os.path.exists(metadata_path):
-            raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
-        with open(metadata_path, "r") as f:
-            metadata = json.load(f)
+    def _create_instance_from_metadata(cls, metadata: Dict[str, Any]):
+        """Create an instance from metadata."""
+        return cls()
 
-        # Initialize classifier
-        classifier = cls()
-        classifier.metadata = metadata
+    def _load_model_components(self, model_dir: Path) -> None:
+        """Load model-specific components."""
+        import joblib
 
-        # Load model, vectorizer, and label encoder
-        classifier.model = joblib.load(os.path.join(model_path, "model.pkl"))
-        classifier.vectorizer = joblib.load(os.path.join(model_path, "vectorizer.pkl"))
-        classifier.label_encoder = joblib.load(os.path.join(model_path, "label_encoder.pkl"))
+        self.model = joblib.load(model_dir / "model.pkl")
+        self.vectorizer = joblib.load(model_dir / "vectorizer.pkl")
 
-        logger.info(f"Model loaded successfully from {model_path}")
-        return classifier
+    def _save_model_components(self, save_dir: Path) -> None:
+        """Save model-specific components."""
+        import joblib
+
+        joblib.dump(self.model, save_dir / "model.pkl")
+        joblib.dump(self.vectorizer, save_dir / "vectorizer.pkl")
+
+    def get_framework_name(self) -> str:
+        """Get the framework name."""
+        return "sklearn"
 
     def predict(self, texts, return_probabilities: bool = False):
         """Make predictions on new text data"""
@@ -196,7 +149,7 @@ class SKNaiveBayesTextClassifier:
 
     def get_model_info(self):
         """Get model information"""
-        return self.metadata
+        return super().get_model_info()
 
 
 # if __name__ == "__main__":

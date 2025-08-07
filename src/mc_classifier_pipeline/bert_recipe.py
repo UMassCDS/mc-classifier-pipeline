@@ -1,8 +1,8 @@
 import os
-import json
 import logging
 from datetime import datetime
-from typing import Dict, Optional, Tuple, Any
+from pathlib import Path
+from typing import Dict, Optional, Any
 
 import pandas as pd
 import numpy as np
@@ -15,14 +15,12 @@ from transformers import (
     Trainer,
     DataCollatorWithPadding,
 )
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from sklearn.preprocessing import LabelEncoder
-import joblib
 
 # Disable MLflow tracking completely
 os.environ["MLFLOW_TRACKING_DISABLED"] = "True"
 os.environ["DISABLE_MLFLOW_INTEGRATION"] = "True"
 
+from mc_classifier_pipeline.base_classifier import BaseTextClassifier
 from mc_classifier_pipeline.utils import configure_logging
 
 # Set up logging
@@ -57,41 +55,17 @@ class TextClassificationDataset(Dataset):
         }
 
 
-class BERTTextClassifier:
+class BERTTextClassifier(BaseTextClassifier):
     """BERT-based text classifier with training and inference capabilities"""
 
     def __init__(self, model_name: str = "bert-base-uncased"):
+        super().__init__(model_name)
         self.model_name = model_name
         self.tokenizer = None
         self.model = None
-        self.label_encoder = LabelEncoder()
         self.training_args = None
-        self.metadata = {}
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
-
-    def load_data(
-        self, project_folder: str, text_column: str = "text", label_column: str = "label"
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Load train and test data from CSV files"""
-        train_path = os.path.join(project_folder, "train.csv")
-        test_path = os.path.join(project_folder, "test.csv")
-
-        if not os.path.exists(train_path):
-            raise FileNotFoundError(f"Training file not found: {train_path}")
-        if not os.path.exists(test_path):
-            raise FileNotFoundError(f"Test file not found: {test_path}")
-
-        train_df = pd.read_csv(train_path)
-        test_df = pd.read_csv(test_path)
-
-        logger.info(f"Loaded {len(train_df)} training samples and {len(test_df)} test samples")
-
-        # Validate required columns
-        if text_column not in train_df.columns or label_column not in train_df.columns:
-            raise ValueError(f"Required columns '{text_column}' and '{label_column}' not found in training data")
-
-        return train_df, test_df
 
     def prepare_model(self, num_labels: int):
         """Initialize tokenizer and model"""
@@ -118,12 +92,8 @@ class BERTTextClassifier:
     ):
         """Prepare training and test datasets"""
 
-        # Encode labels
-        all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
-        self.label_encoder.fit(all_labels)
-
-        train_labels = self.label_encoder.transform(train_df[label_column])
-        test_labels = self.label_encoder.transform(test_df[label_column])
+        # Prepare labels using base class method
+        train_labels, test_labels = self.prepare_labels(train_df, test_df, label_column)
 
         # Create datasets
         train_dataset = TextClassificationDataset(
@@ -134,22 +104,13 @@ class BERTTextClassifier:
             test_df[text_column].tolist(), test_labels, self.tokenizer, max_length
         )
 
-        logger.info(f"Number of unique labels: {len(self.label_encoder.classes_)}")
-        logger.info(
-            f"Label mapping: {dict(zip(self.label_encoder.classes_, range(len(self.label_encoder.classes_))))}"
-        )
-
         return train_dataset, test_dataset
 
     def compute_metrics(self, eval_pred):
         """Compute metrics for evaluation"""
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=1)
-
-        precision, recall, f1, _ = precision_recall_fscore_support(labels, predictions, average="weighted")
-        accuracy = accuracy_score(labels, predictions)
-
-        return {"accuracy": accuracy, "f1": f1, "precision": precision, "recall": recall}
+        return self.compute_metrics_from_predictions(labels, predictions)
 
     def train(
         self,
@@ -235,16 +196,12 @@ class BERTTextClassifier:
         logger.info("Evaluating on test set...")
         eval_result = trainer.evaluate()
 
-        # Save the model and tokenizer
+        # Save the model using base class method
         logger.info(f"Saving model to {save_path}")
         trainer.save_model(save_path)
-        self.tokenizer.save_pretrained(save_path)
-
-        # Save label encoder
-        joblib.dump(self.label_encoder, os.path.join(save_path, "label_encoder.pkl"))
 
         # Create metadata
-        self.metadata = {
+        metadata = {
             "framework": "transformers",
             "model_name": self.model_name,
             "num_labels": num_labels,
@@ -266,9 +223,8 @@ class BERTTextClassifier:
             "label_column": label_column,
         }
 
-        # Save metadata
-        with open(os.path.join(save_path, "metadata.json"), "w") as f:
-            json.dump(self.metadata, f, indent=2)
+        self.save_model(save_path, metadata)
+        self.is_trained = True
 
         logger.info("Training completed successfully!")
         logger.info(f"Final evaluation results: {eval_result}")
@@ -276,32 +232,26 @@ class BERTTextClassifier:
         return self.metadata
 
     @classmethod
-    def load_for_inference(cls, model_path: str):
-        """Load a trained model for inference"""
+    def _create_instance_from_metadata(cls, metadata: Dict[str, Any]):
+        """Create an instance from metadata."""
+        model_name = metadata.get("model_name", "bert-base-uncased")
+        return cls(model_name)
 
-        # Load metadata
-        metadata_path = os.path.join(model_path, "metadata.json")
-        if not os.path.exists(metadata_path):
-            raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+    def _load_model_components(self, model_dir: Path) -> None:
+        """Load model-specific components."""
+        self.tokenizer = AutoTokenizer.from_pretrained(str(model_dir))
+        self.model = AutoModelForSequenceClassification.from_pretrained(str(model_dir))
+        self.model.to(self.device)
+        self.model.eval()
 
-        with open(metadata_path, "r") as f:
-            metadata = json.load(f)
+    def _save_model_components(self, save_dir: Path) -> None:
+        """Save model-specific components."""
+        self.tokenizer.save_pretrained(save_dir)
+        self.model.save_pretrained(save_dir)
 
-        # Initialize classifier
-        classifier = cls(metadata["model_name"])
-        classifier.metadata = metadata
-
-        # Load model and tokenizer
-        classifier.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        classifier.model = AutoModelForSequenceClassification.from_pretrained(model_path)
-
-        # Load label encoder
-        label_encoder_path = os.path.join(model_path, "label_encoder.pkl")
-        classifier.label_encoder = joblib.load(label_encoder_path)
-
-        logger.info(f"Model loaded successfully from {model_path}")
-
-        return classifier
+    def get_framework_name(self) -> str:
+        """Get the framework name."""
+        return "hf"
 
     def predict(self, texts, batch_size: int = 32, return_probabilities: bool = False):
         """Make predictions on new text data"""
@@ -350,7 +300,7 @@ class BERTTextClassifier:
 
     def get_model_info(self):
         """Get model information"""
-        return self.metadata
+        return super().get_model_info()
 
 
 if __name__ == "__main__":
