@@ -1,9 +1,9 @@
-import os
 import json
 import argparse
 import gc
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 
 import numpy as np
@@ -21,15 +21,15 @@ logger = logging.getLogger(__name__)
 
 # IO helpers
 def load_test_data(
-    experiment_dir: str,
+    experiment_dir: Path,
     text_column: str,
     label_column: str,
 ) -> pd.DataFrame:
     """
     Load test.csv and validate required columns.
     """
-    test_path = os.path.join(experiment_dir, "test.csv")
-    if not os.path.exists(test_path):
+    test_path = experiment_dir / "test.csv"
+    if not test_path.exists():
         raise FileNotFoundError(f"Could not find test.csv at: {test_path}")
     df = pd.read_csv(test_path)
     for col in (text_column, label_column):
@@ -38,7 +38,7 @@ def load_test_data(
     return df[[text_column, label_column]].copy()
 
 
-def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
+def discover_model_dirs(models_root: Path) -> List[Dict[str, str]]:
     """
     Scan <models_root> for valid model directories.
 
@@ -49,50 +49,49 @@ def discover_model_dirs(models_root: str) -> List[Dict[str, str]]:
     Returns a list of dicts: [{"path": "<abs_path>", "framework": "hf"|"sklearn", "name": "<dir_name>"}]
     """
     logger.info(f"Scanning for models in: {models_root}")
-    if not os.path.isdir(models_root):
+    if not models_root.is_dir():
         raise FileNotFoundError(f"Models folder not found: {models_root}")
 
     found: List[Dict[str, str]] = []
-    for name in sorted(os.listdir(models_root)):
-        path = os.path.join(models_root, name)
-        if not os.path.isdir(path):
+    for model_path in sorted(models_root.iterdir()):
+        if not model_path.is_dir():
             continue
 
         framework: Optional[str] = None
 
         # First try to detect framework from metadata.json
-        meta_path = os.path.join(path, "metadata.json")
-        if os.path.exists(meta_path):
+        meta_path = model_path / "metadata.json"
+        if meta_path.exists():
             try:
                 with open(meta_path, "r", encoding="utf-8") as f:
                     meta = json.load(f)
                 fw = str(meta.get("framework", "")).strip().lower()
                 if fw in {"hf", "transformers"}:
                     framework = "hf"
-                    logger.debug(f"Detected HuggingFace model from metadata: {path}")
+                    logger.debug(f"Detected HuggingFace model from metadata: {model_path}")
                 elif fw in {"sk", "sklearn", "scikit-learn"}:
                     framework = "sklearn"
-                    logger.debug(f"Detected sklearn model from metadata: {path}")
+                    logger.debug(f"Detected sklearn model from metadata: {model_path}")
             except Exception as e:
-                logger.warning(f"Could not read metadata.json in {path}: {e}")
+                logger.warning(f"Could not read metadata.json in {model_path}: {e}")
 
         # If framework not detected from metadata, try file-based detection
         if not framework:
-            has_config = os.path.exists(os.path.join(path, "config.json"))
-            has_model_pkl = os.path.exists(os.path.join(path, "model.pkl"))
-            has_vectorizer = os.path.exists(os.path.join(path, "vectorizer.pkl"))
+            has_config = (model_path / "config.json").exists()
+            has_model_pkl = (model_path / "model.pkl").exists()
+            has_vectorizer = (model_path / "vectorizer.pkl").exists()
 
             if has_config:
                 framework = "hf"
-                logger.debug(f"Detected HuggingFace model from config.json: {path}")
+                logger.debug(f"Detected HuggingFace model from config.json: {model_path}")
             elif has_model_pkl and has_vectorizer:
                 framework = "sklearn"
-                logger.debug(f"Detected sklearn model from model.pkl + vectorizer.pkl: {path}")
+                logger.debug(f"Detected sklearn model from model.pkl + vectorizer.pkl: {model_path}")
             else:
-                logger.warning(f"Could not determine framework for {path}")
+                logger.warning(f"Could not determine framework for {model_path}")
                 continue
 
-        found.append({"path": path, "framework": framework, "name": name})
+        found.append({"path": str(model_path), "framework": framework, "name": model_path.name})
 
     if not found:
         logger.error(f"No valid model folders found under: {models_root}")
@@ -194,7 +193,7 @@ def compute_weighted_metrics(
 
 # Main eval
 def evaluate_models(
-    experiment_dir: str,
+    experiment_dir: Path,
     text_column: str,
     label_column: str,
     best_metric: str,
@@ -206,7 +205,7 @@ def evaluate_models(
     Produces a leaderboard DataFrame and a summary dict.
     """
     logger.info(f"Starting model evaluation for experiment: {experiment_dir}")
-    models_root = os.path.join(experiment_dir, "models")
+    models_root = experiment_dir / "models"
     test_df = load_test_data(experiment_dir, text_column, label_column)
     logger.info(f"Loaded test data with {len(test_df)} samples")
     model_dirs = discover_model_dirs(models_root)
@@ -307,8 +306,8 @@ def evaluate_models(
         logger.warning("No valid models found in evaluation results")
     summary = {
         "evaluated_at": datetime.now().isoformat(),
-        "experiment_dir": experiment_dir,
-        "models_root": models_root,
+        "experiment_dir": str(experiment_dir),
+        "models_root": str(models_root),
         "test_size": len(test_df),
         "text_column": text_column,
         "label_column": label_column,
@@ -331,13 +330,13 @@ def evaluate_models(
     return results, summary
 
 
-def write_outputs(models_root: str, results: pd.DataFrame, summary: Dict):
+def write_outputs(models_root: Path, results: pd.DataFrame, summary: Dict):
     """
     Write results.csv and evaluation_summary.json into the models/ folder.
     """
-    os.makedirs(models_root, exist_ok=True)
-    results_path = os.path.join(models_root, "results.csv")
-    summary_path = os.path.join(models_root, "evaluation_summary.json")
+    models_root.mkdir(parents=True, exist_ok=True)
+    results_path = models_root / "results.csv"
+    summary_path = models_root / "evaluation_summary.json"
 
     results.to_csv(results_path, index=False)
     with open(summary_path, "w") as f:
@@ -348,9 +347,11 @@ def write_outputs(models_root: str, results: pd.DataFrame, summary: Dict):
 
 
 # CLI
-def build_argparser():
+def build_argparser(add_help: bool = True):
     p = argparse.ArgumentParser(
         description="Evaluate all trained models in an experiment folder (weighted metrics; supports HF and sklearn).",
+        add_help=add_help,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument("--experiment-dir", required=True, help="Path to experiment folder containing test.csv and models/")
     p.add_argument("--text-column", default="text", help="Text column name in test.csv")
@@ -366,19 +367,27 @@ def build_argparser():
     return p
 
 
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    return build_argparser().parse_args()
+
+
 def main(args: Optional[argparse.Namespace] = None):
     logger.info("Starting evaluation script")
     if args is None:
-        args = build_argparser()
+        args = parse_args()
+
+    # Convert experiment_dir to Path object
+    experiment_dir = Path(args.experiment_dir)
 
     logger.info(
-        f"Evaluation parameters - experiment_dir: {args.experiment_dir}, "
+        f"Evaluation parameters - experiment_dir: {experiment_dir}, "
         f"text_column: {args.text_column}, label_column: {args.label_column}, "
         f"best_metric: {args.best_metric}, batch_size: {args.batch_size}"
     )
 
     results, summary = evaluate_models(
-        experiment_dir=args.experiment_dir,
+        experiment_dir=experiment_dir,
         text_column=args.text_column,
         label_column=args.label_column,
         best_metric=args.best_metric,
@@ -386,7 +395,7 @@ def main(args: Optional[argparse.Namespace] = None):
         max_length=args.max_length,
     )
 
-    models_root = os.path.join(args.experiment_dir, "models")
+    models_root = experiment_dir / "models"
     write_outputs(models_root, results, summary)
     logger.info("Evaluation script completed successfully")
 
