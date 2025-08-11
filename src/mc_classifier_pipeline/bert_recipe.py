@@ -23,7 +23,7 @@ import joblib
 os.environ["MLFLOW_TRACKING_DISABLED"] = "True"
 os.environ["DISABLE_MLFLOW_INTEGRATION"] = "True"
 
-from mc_classifier_pipeline.utils import configure_logging  
+from mc_classifier_pipeline.utils import configure_logging
 
 # Set up logging
 configure_logging()

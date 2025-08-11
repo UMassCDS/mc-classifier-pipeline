@@ -1,6 +1,5 @@
 """MC Classifier Pipeline package."""
 
-
 __version__ = "0.0.1"
 
 from mc_classifier_pipeline import (
@@ -14,7 +13,7 @@ from mc_classifier_pipeline import (
     trainer,
     utils,
     model_orchestrator,
-    annotation_analysis
+    annotation_analysis,
 )
 
 __all__ = [
