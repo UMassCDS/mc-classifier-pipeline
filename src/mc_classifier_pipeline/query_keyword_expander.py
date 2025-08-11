@@ -14,13 +14,14 @@ from mc_classifier_pipeline import utils
 utils.configure_logging()
 logger = logging.getLogger(__name__)
 
+
 class PMIKeywordExpander:
     """
     A class to expand keywords using Pointwise Mutual Information (PMI) analysis.
     Analyzes text corpus to find words most associated with a seed keyword.
     """
 
-    CSV_PATH = "data/search_results.csv"  #stores results from running doc_retriever.py
+    CSV_PATH = "data/search_results.csv"  # stores results from running doc_retriever.py
     TOP_KEYWORDS = 20
 
     def __init__(self, seed_word):
@@ -112,9 +113,9 @@ class PMIKeywordExpander:
         """Generate a search query using seed word and all top keywords with OR operators."""
         keywords = self.expanded_keyword_set()
         return f"{self.seed_word} OR " + " OR ".join(keywords)
-    
 
-def build_argument_parser(add_help: bool = True)-> argparse.ArgumentParser:
+
+def build_argument_parser(add_help: bool = True) -> argparse.ArgumentParser:
     """
     Build the argument parser for the keyword expander script.
 
@@ -125,10 +126,11 @@ def build_argument_parser(add_help: bool = True)-> argparse.ArgumentParser:
         Argument parser instance
     """
     parser = argparse.ArgumentParser(
-    description="Expand keywords using PMI analysis on a text corpus.",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
-    add_help=add_help)
-    
+        description="Expand keywords using PMI analysis on a text corpus.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        add_help=add_help,
+    )
+
     parser.add_argument(
         "--seed-word",
         type=str,
@@ -143,9 +145,11 @@ def build_argument_parser(add_help: bool = True)-> argparse.ArgumentParser:
     )
     return parser
 
+
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     return build_argument_parser().parse_args()
+
 
 def main() -> None:
     """Main function to run the keyword expander."""
@@ -175,6 +179,7 @@ def main() -> None:
     logger.info(f"Expanded Keywords: {expanded_keywords}")
     logger.info(f"Generated Search Query: {search_query}")
     return search_query
+
 
 if __name__ == "__main__":
     main()
