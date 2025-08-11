@@ -24,7 +24,9 @@ os.environ["MLFLOW_TRACKING_DISABLED"] = "True"
 os.environ["DISABLE_MLFLOW_INTEGRATION"] = "True"
 
 # from . import utils
-from utils import configure_logging  # this is for local running, the above is for running in the pipeline
+from mc_classifier_pipeline.utils import (
+    configure_logging,
+)  # this is for local running, the above is for running in the pipeline
 
 # Set up logging
 configure_logging()

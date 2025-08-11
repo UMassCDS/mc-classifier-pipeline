@@ -1,5 +1,4 @@
 import argparse
-import os
 import logging
 from pathlib import Path
 import json
@@ -7,12 +6,10 @@ from io import BytesIO
 from typing import Optional
 
 import requests
-from dotenv import load_dotenv
 from label_studio_sdk.client import LabelStudio
 
-from mc_classifier_pipeline.utils import configure_logging
+from mc_classifier_pipeline.utils import configure_logging, validate_label_studio_env
 
-load_dotenv()
 # Configure logging
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -90,18 +87,8 @@ def parse_args():
 def main(args: Optional[argparse.Namespace] = None):
     if args is None:
         args = parse_args()
-    label_studio_host = os.getenv("LABEL_STUDIO_HOST")
-    label_studio_token = os.getenv("LABEL_STUDIO_TOKEN")
-    missing_vars = []
-    if not label_studio_host:
-        missing_vars.append("LABEL_STUDIO_HOST")
-    if not label_studio_token:
-        missing_vars.append("LABEL_STUDIO_TOKEN")
 
-    if missing_vars:
-        raise ValueError(
-            f"Missing environment variables: {', '.join(missing_vars)}. Please set them in your .env file."
-        )
+    label_studio_host, label_studio_token = validate_label_studio_env()
 
     ls_client = LabelStudio(base_url=label_studio_host, api_key=label_studio_token)
 

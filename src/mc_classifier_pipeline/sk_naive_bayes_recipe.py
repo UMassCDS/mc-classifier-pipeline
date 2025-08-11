@@ -13,7 +13,7 @@ from sklearn.preprocessing import LabelEncoder
 import joblib
 
 # from . import utils
-from utils import configure_logging  # for local running
+from mc_classifier_pipeline.utils import configure_logging
 
 # Set up logging
 configure_logging()

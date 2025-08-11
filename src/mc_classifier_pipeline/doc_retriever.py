@@ -2,7 +2,6 @@ import argparse
 import datetime as dt
 import json
 import logging
-import os
 from collections import Counter
 from enum import StrEnum
 from pathlib import Path
@@ -10,13 +9,12 @@ from typing import Optional
 
 import mediacloud.api
 import pandas as pd
-from dotenv import load_dotenv
 from tqdm import tqdm
 
-from . import utils
+from mc_classifier_pipeline.utils import configure_logging, validate_mediacloud_env
 
 # Configure logging
-utils.configure_logging()
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -27,9 +25,6 @@ class ArticleStatus(StrEnum):
 
 
 # Configuration and constants
-load_dotenv()
-MC_API_KEY = os.getenv("MC_API_KEY")
-
 RAW_ARTICLES_DIR = Path("data/raw_articles")
 FAILED_URLS_LOG = Path("data/failed_urls.txt")
 ARTICLES_INDEX_FILE = Path("data/articles_index.json")
@@ -37,6 +32,7 @@ ARTICLES_INDEX_FILE = Path("data/articles_index.json")
 # Initialize Media Cloud API
 SEARCH_API = None
 try:
+    MC_API_KEY = validate_mediacloud_env()
     SEARCH_API = mediacloud.api.SearchApi(MC_API_KEY)
     logger.info("Media Cloud API initialized.")
 except Exception as e:
