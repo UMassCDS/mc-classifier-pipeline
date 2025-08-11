@@ -18,6 +18,7 @@ You should also add project tags for each release in Github, see [Managing relea
 - Add `trainer.py` for training multiple model recipes from configuration files
 - Add `sk_naive_bayes_recipe.py` for scikit-learn based text classification
 - Add `inference.py` for generating predictions for a list of story URLs using a trained model
+- Add `model_orchestrator.py` for connecting preprocessing, training, and evaluation
 
 ### Changed
 - Modify `doc_retriever` script to store in Label Studio formatted Json.
