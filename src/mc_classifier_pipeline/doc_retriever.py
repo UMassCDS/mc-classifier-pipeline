@@ -3,7 +3,7 @@ import datetime as dt
 import json
 import logging
 from collections import Counter
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -18,7 +18,7 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 
-class ArticleStatus(StrEnum):
+class ArticleStatus(str, Enum):
     SUCCESS = "success"
     FAILED_NO_TEXT = "failed_no_text"
     UNKNOWN = "unknown"

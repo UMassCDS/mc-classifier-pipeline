@@ -9,6 +9,11 @@ name = "mc_classifier_pipeline"
 version = "0.0.1"
 description = "Pipelines for preparing documents from Media Cloud's news archive for annotation and machine learning."
 readme = "README.md"
+authors = [
+    {name = "UMass Amherst Center for Data Science"},
+]
+license = {text = "MIT"}
+keywords = ["media", "classification", "machine-learning", "nlp"]
 
 # What version of python does your library work with?
 requires-python = ">=3.10"
@@ -34,28 +39,29 @@ dependencies = [
     "torch",
     "tqdm",
     "transformers",
+    "xmltodict"
 ]
 
 [project.optional-dependencies]
 # Extra dependencies only needed for running tests go here
-test = ["pytest"]
+test = ["pytest>=8.0.0"]
 
 # Dependencies that are useful only to developers, like an autoformatter and
 # support for visualizations in jupyter notebooks go here
 dev = [
-    "bs4",
-    "dotenv",
-    "jupyter",
-    "lxml_html_clean",
-    "matplotlib",
-    "mediacloud",
-    "newspaper3k",
-    "nltk",
-    "requests",
-    "ruff",
-    "seaborn",
-    "sphinx",
-    "textblob"
+    "bs4>=4.0.0",
+    "dotenv>=1.0.0",
+    "jupyter>=1.0.0",
+    "lxml_html_clean>=1.0.0",
+    "matplotlib>=3.0.0",
+    "mediacloud>=4.4.1",
+    "newspaper3k>=0.2.0",
+    "nltk>=3.0.0",
+    "requests>=2.0.0",
+    "ruff>=0.0.0",
+    "seaborn>=0.11.0",
+    "sphinx>=4.0.0",
+    "textblob>=0.15.0"
 ]
 
 # If your project contains scripts you'd like to be available command line, you can define them here.
