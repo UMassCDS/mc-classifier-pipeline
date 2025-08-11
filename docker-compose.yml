@@ -1,23 +1,57 @@
 services:
-  mc_pipeline:
+  # Data collection and Label Studio upload pipeline
+  mc-pipeline:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mc_pipeline:latest            
+    image: mc_classifier:latest
     container_name: mc_pipeline
-
     env_file:
-      - .env            
-
+      - .env
     volumes:
       - ./src:/app/src
-      - ./data:/app/data                 
+      - ./data:/app/data
+      - ./experiments:/app/experiments
+      - ./configs:/app/configs
+    entrypoint: [ "/app/entrypoint.sh" ]
+    command: [ "run-pipeline", "--help" ]
+    tty: true
+    working_dir: /app
 
-    entrypoint: ["python", "-m", "mc_classifier_pipeline.run_pipeline"]
-    command: ["--help"]        
+  # Complete ML pipeline: preprocessing -> training -> evaluation  
+  mc-model-orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mc_classifier:latest
+    container_name: mc_model_orchestrator
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./experiments:/app/experiments
+      - ./configs:/app/configs
+    entrypoint: [ "/app/entrypoint.sh" ]
+    command: [ "model-orchestrator", "--help" ]
+    tty: true
+    working_dir: /app
 
-    # ports:
-    #   - "8000:8000"          
-
-    tty: true                
+  # Inference pipeline for making predictions
+  mc-inference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mc_classifier:latest
+    container_name: mc_inference
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./experiments:/app/experiments
+      - ./configs:/app/configs
+    entrypoint: [ "/app/entrypoint.sh" ]
+    command: [ "inference", "--help" ]
+    tty: true
     working_dir: /app
