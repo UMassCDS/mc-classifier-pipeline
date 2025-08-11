@@ -27,20 +27,22 @@ classifiers = [
 
 # All the dependencies needed for running your module go here
 dependencies = [
-    "accelerate",
-    "irrCAC",
-    "joblib",
-    "label-studio-sdk>1.0",
-    "mediacloud",
-    "numpy",
-    "pandas",
-    "python-dotenv",
-    "scikit-learn",
-    "torch",
-    "tqdm",
-    "transformers",
-    "xmltodict"
+    "accelerate>=1.9.0",
+    "joblib>=1.3.2",
+    "label-studio-sdk>=1.0.20",
+    "mediacloud>=4.4.1",
+    "numpy>=1.26.0,<2.0.0",        
+    "pandas>=2.2.0,<3.0.0",        
+    "python-dotenv>=1.1.0",
+    "scikit-learn>=1.3.0,<1.7.0",  
+    "torch>=2.2.0",                 
+    "torchvision>=0.17.0",
+    "tqdm>=4.67.0",
+    "transformers>=4.40.0",
+    "xmltodict>=0.13.0",
+    "irrCAC"
 ]
+
 
 [project.optional-dependencies]
 # Extra dependencies only needed for running tests go here
