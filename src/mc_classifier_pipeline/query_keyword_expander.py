@@ -1,10 +1,18 @@
-import pandas as pd
+import argparse
+import logging
+import math
+from collections import Counter
+
 import nltk
+import pandas as pd
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-from collections import Counter
-import math
 
+from mc_classifier_pipeline import utils
+
+# Configure logging
+utils.configure_logging()
+logger = logging.getLogger(__name__)
 
 class PMIKeywordExpander:
     """
@@ -12,10 +20,10 @@ class PMIKeywordExpander:
     Analyzes text corpus to find words most associated with a seed keyword.
     """
 
-    CSV_PATH = "data/search_results.csv"  # currently has results from running python src/mc_classifier_pipeline/doc_retriever.py --query "healthcare" --start-date 2024-12-01 --end-date 2025-07-01 --limit 1000 --output data/search_results.csv
+    CSV_PATH = "data/search_results.csv"  #stores results from running doc_retriever.py
     TOP_KEYWORDS = 20
 
-    def __init__(self, seed_word="health"):
+    def __init__(self, seed_word):
         """Initialize the PMI keyword expander."""
         self.article_df = None
         self.seed_word = seed_word
@@ -104,76 +112,69 @@ class PMIKeywordExpander:
         """Generate a search query using seed word and all top keywords with OR operators."""
         keywords = self.expanded_keyword_set()
         return f"{self.seed_word} OR " + " OR ".join(keywords)
+    
 
+def build_argument_parser(add_help: bool = True)-> argparse.ArgumentParser:
+    """
+    Build the argument parser for the keyword expander script.
 
-# Create an instance
-health_expander = PMIKeywordExpander()
+    Args:
+        add_help: Whether to add the default help argument
 
-# Test the load method
-success = health_expander.load()
-print(f"Loading successful: {success}")
+    Returns:
+        Argument parser instance
+    """
+    parser = argparse.ArgumentParser(
+    description="Expand keywords using PMI analysis on a text corpus.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+    add_help=add_help)
+    
+    parser.add_argument(
+        "--seed-word",
+        type=str,
+        required=True,
+        help="The seed keyword to expand from (e.g., 'healthcare').",
+    )
+    parser.add_argument(
+        "--top-n",
+        type=int,
+        default=PMIKeywordExpander.TOP_KEYWORDS,
+        help="Number of top keywords to return based on PMI scores.",
+    )
+    return parser
 
-# Check what was loaded
-if success:
-    print(f"Shape of data: {health_expander.article_df.shape}")
-    print(f"Columns: {health_expander.article_df.columns.tolist()}")
-    print(f"First few rows:\n{health_expander.article_df.head()}")
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    return build_argument_parser().parse_args()
 
-health_expander.preprocess()
+def main() -> None:
+    """Main function to run the keyword expander."""
+    args = parse_args()
+    expander = PMIKeywordExpander(seed_word=args.seed_word)
+    expander.TOP_KEYWORDS = args.top_n
 
-# PREPROCESSING
-print(f"Number of English articles: {len(health_expander.article_df)}")
-print(f"Columns after preprocessing: {health_expander.article_df.columns.tolist()}")
+    if not expander.load():
+        logger.error("Failed to load data. Exiting.")
+        return
 
-# Look at some sample tokens
-print("\nSample tokens from first article:")
-print(health_expander.article_df["tokens"].iloc[0][:20])  # First 20 tokens
+    logger.info("Preprocessing text data...")
+    expander.preprocess()
 
-# Check token statistics
-token_lengths = health_expander.article_df["tokens"].apply(len)
-print("\nToken count statistics:")
-print(f"Average tokens per article: {token_lengths.mean():.1f}")
-print(f"Min tokens: {token_lengths.min()}")
-print(f"Max tokens: {token_lengths.max()}")
+    logger.info("Counting document frequencies...")
+    expander.doc_frequency_count()
 
-# Check if 'climate' appears in tokens (since that's our seed word)
-healthcare_count = sum(1 for tokens in health_expander.article_df["tokens"] if "healthcare" in tokens)
-print(f"\nArticles containing 'healthcare': {healthcare_count}")
+    logger.info("Calculating PMI scores...")
+    expander.PMI_calc()
 
-health_expander.doc_frequency_count()
+    logger.info("Ranking keywords...")
+    expander.ranking()
 
-# PMI FREQUENCY COUNTS
-print(f"Total documents: {health_expander.total_documents}")
-print(f"Documents containing '{health_expander.seed_word}': {health_expander.seed_doc_count}")
-print(f"Total unique words: {len(health_expander.doc_frequencies)}")
+    expanded_keywords = expander.expanded_keyword_set()
+    search_query = expander.generate_search_query()
 
-# Check some co-occurrence counts
-print(f"\nTop words co-occurring with '{health_expander.seed_word}':")
-print(health_expander.cooccurrence_counts.most_common(10))
+    logger.info(f"Expanded Keywords: {expanded_keywords}")
+    logger.info(f"Generated Search Query: {search_query}")
+    return search_query
 
-# Check that healthcare co-occurs with itself correctly
-print(
-    f"\n'{health_expander.seed_word}' co-occurs with itself in {health_expander.cooccurrence_counts[health_expander.seed_word]} documents"
-)
-
-# Verify this matches the seed_doc_count
-print(f"This should match seed_doc_count: {health_expander.seed_doc_count}")
-
-# PMI calculation
-health_expander.PMI_calc()
-
-print(f"Total words with PMI scores: {len(health_expander.pmi_scores)}")
-print("Sample PMI scores:")
-for word, score in list(health_expander.pmi_scores.items())[:10]:
-    print(f"  {word}: {score:.4f}")
-
-health_expander.ranking()
-print(f"Top {health_expander.TOP_KEYWORDS} keywords by PMI:")
-for word, score in health_expander.top_keywords:
-    print(f"  {word}: {score:.4f}")
-
-keywords = health_expander.expanded_keyword_set()
-print(f"Final expanded keyword set: {keywords}")
-
-query = health_expander.generate_search_query()
-print(f"Search query: {query}")
+if __name__ == "__main__":
+    main()
