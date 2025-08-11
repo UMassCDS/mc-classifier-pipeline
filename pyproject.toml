@@ -23,6 +23,7 @@ classifiers = [
 # All the dependencies needed for running your module go here
 dependencies = [
     "accelerate",
+    "irrCAC",
     "joblib",
     "label-studio-sdk>1.0",
     "mediacloud",
