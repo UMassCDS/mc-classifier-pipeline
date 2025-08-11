@@ -366,9 +366,10 @@ def build_argparser():
     return p
 
 
-def main():
+def main(args: Optional[argparse.Namespace] = None):
     logger.info("Starting evaluation script")
-    args = build_argparser().parse_args()
+    if args is None:
+        args = build_argparser()
 
     logger.info(
         f"Evaluation parameters - experiment_dir: {args.experiment_dir}, "
