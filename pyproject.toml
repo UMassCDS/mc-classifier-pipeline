@@ -44,7 +44,11 @@ dependencies = [
 
 [project.optional-dependencies]
 # Extra dependencies only needed for running tests go here
-test = ["pytest>=8.0.0"]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov==4.1.0",
+    "coverage==6.5.0"
+]
 
 # Dependencies that are useful only to developers, like an autoformatter and
 # support for visualizations in jupyter notebooks go here
