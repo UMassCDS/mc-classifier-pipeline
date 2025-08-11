@@ -13,17 +13,29 @@ logger = logging.getLogger(__name__)
 
 
 def parse_cli():
-    # Create the main argument parser for the pipeline
+    # Create a preliminary parser just to check if --experiment-dir is provided
+    preliminary_parser = argparse.ArgumentParser(add_help=False)
+    preliminary_parser.add_argument("--experiment-dir", required=False, default=None)
+
+    # Parse known args to see if experiment-dir is provided
+    known_args, _ = preliminary_parser.parse_known_args()
+
+    # Build parent parsers conditionally
+    parent_parsers = [
+        trainer.build_trainer_parser(add_help=False),
+        evaluator.build_argparser(add_help=False),
+    ]
+
+    # Only include preprocessing parser if we're not using existing experiment-dir
+    if not known_args.experiment_dir:
+        parent_parsers.insert(0, preproc.build_argument_parser(add_help=False))
+
+    # Create the main argument parser
     parser = argparse.ArgumentParser(
         description="End-to-end Preprocessing -> Model Evaluation pipeline",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         conflict_handler="resolve",
-        # Use argument parsers from doc_retriever and label_studio_uploader as parents
-        parents=[
-            preproc.build_argument_parser(add_help=False),
-            trainer.build_trainer_parser(add_help=False),
-            evaluator.build_argparser(add_help=False),
-        ],
+        parents=parent_parsers,
         epilog="""
             Examples:
             python -m mc_classifier_pipeline.model_orchestrator --project-id 1 --train-ratio 0.7  --output-dir experiments --target-label 'Analysis' --models-config configs/quick_test.json
@@ -37,13 +49,6 @@ def parse_cli():
         default=None,
         help="Experiment directory (if provided, preprocessing will be skipped)",
     )
-
-    # Make project-id not required since it's only needed for preprocessing
-    # Find the project-id action and make it not required
-    for action in parser._actions:
-        if hasattr(action, "dest") and action.dest == "project_id":
-            action.required = False
-            break
 
     logger.info("Parsed command line arguments...")
     return parser.parse_args()
