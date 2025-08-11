@@ -30,7 +30,7 @@ import logging
 import os
 from collections import Counter, defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -117,84 +117,89 @@ def extract_annotations(tasks: List[Any]) -> List[Dict[str, Any]]:
     return records
 
 
-def calculate_overall_agreement_metrics(multi_annotated_tasks: Dict[int, List[Dict[str, Any]]], 
-                                      control: str) -> Dict[str, float]:
+def calculate_overall_agreement_metrics(
+    multi_annotated_tasks: Dict[int, List[Dict[str, Any]]], control: str
+) -> Dict[str, float]:
     """
     Calculate overall agreement metrics across multiple tasks for a specific control.
     Uses correct data structure for irrCAC: rows = subjects (tasks), columns = raters (annotators).
-    
+
     Args:
         multi_annotated_tasks: Dictionary mapping task_id to list of annotations
         control: The control/field name to analyze
-    
+
     Returns:
         Dictionary containing overall agreement metrics
     """
     if not multi_annotated_tasks:
         return {"krippendorff_alpha": np.nan, "gwet_ac1": np.nan, "cohen_kappa": np.nan}
-    
+
     try:
         # Build data matrix: tasks (subjects) as rows, annotators (raters) as columns
         all_annotators = set()
-        
+
         # First pass: collect all annotators and filter tasks with sufficient annotations
         valid_tasks = {}
         for task_id, annotations in multi_annotated_tasks.items():
             task_annotators = []
             task_labels = []
-            
+
             for annotation in annotations:
                 annotator_id = annotation.get("annotator", "unknown")
                 labels = annotation.get("labels", {}).get(control, [])
-                
+
                 # Take only first label (single-label classification)
                 if isinstance(labels, list) and len(labels) > 0:
                     label = str(labels[0])
                     task_annotators.append(annotator_id)
                     task_labels.append(label)
                     all_annotators.add(annotator_id)
-            
+
             # Only include tasks with at least 2 valid annotations
             if len(task_labels) >= 2:
                 valid_tasks[task_id] = list(zip(task_annotators, task_labels))
-        
+
         if len(valid_tasks) == 0:
             logger.warning(f"No tasks with multiple valid annotations for control '{control}'")
             return {"krippendorff_alpha": np.nan, "gwet_ac1": np.nan, "cohen_kappa": np.nan}
-        
+
         # Sort annotators for consistent column ordering
         all_annotators = sorted(all_annotators)
-        
+
         # Build the rating matrix
         rating_matrix = []
         for task_id, annotator_label_pairs in valid_tasks.items():
             # Create row for this task
             task_row = [np.nan] * len(all_annotators)  # Initialize with NaN for missing ratings
-            
+
             for annotator, label in annotator_label_pairs:
                 annotator_idx = all_annotators.index(annotator)
                 task_row[annotator_idx] = label
-            
+
             rating_matrix.append(task_row)
-        
+
         # Convert to pandas DataFrame
         data = pd.DataFrame(rating_matrix, columns=all_annotators)
-        
+
         # Check if there's sufficient variation in the data
         all_labels = []
         for _, row in data.iterrows():
             valid_labels = [v for v in row.values if pd.notna(v)]
             all_labels.extend(valid_labels)
-        
+
         unique_labels = set(all_labels)
         if len(unique_labels) < 2:
-            logger.warning(f"Insufficient label variation for control '{control}' (only {len(unique_labels)} unique labels)")
+            logger.warning(
+                f"Insufficient label variation for control '{control}' (only {len(unique_labels)} unique labels)"
+            )
             return {"krippendorff_alpha": np.nan, "gwet_ac1": np.nan, "cohen_kappa": np.nan}
-        
-        logger.info(f"Computing agreement metrics for control '{control}': {len(data)} tasks, {len(all_annotators)} annotators, {len(unique_labels)} unique labels")
-        
+
+        logger.info(
+            f"Computing agreement metrics for control '{control}': {len(data)} tasks, {len(all_annotators)} annotators, {len(unique_labels)} unique labels"
+        )
+
         metrics = {}
-        
+
         # Calculate Krippendorff's Alpha
         try:
             krippendorff_cac = CAC(data, weights="identity", categories=sorted(unique_labels))
@@ -205,7 +210,7 @@ def calculate_overall_agreement_metrics(multi_annotated_tasks: Dict[int, List[Di
         except Exception as e:
             logger.warning(f"Error calculating Krippendorff's alpha for '{control}': {e}")
             metrics["krippendorff_alpha"] = np.nan
-        
+
         # Calculate Gwet's AC1
         try:
             gwet_cac = CAC(data, weights="identity", categories=sorted(unique_labels))
@@ -216,7 +221,7 @@ def calculate_overall_agreement_metrics(multi_annotated_tasks: Dict[int, List[Di
         except Exception as e:
             logger.warning(f"Error calculating Gwet's AC1 for '{control}': {e}")
             metrics["gwet_ac1"] = np.nan
-        
+
         # Calculate Cohen's Kappa (only if exactly 2 annotators)
         if len(all_annotators) == 2:
             try:
@@ -230,10 +235,12 @@ def calculate_overall_agreement_metrics(multi_annotated_tasks: Dict[int, List[Di
                 metrics["cohen_kappa"] = np.nan
         else:
             metrics["cohen_kappa"] = np.nan
-            logger.info(f"Cohen's Kappa not applicable for '{control}' (requires exactly 2 annotators, found {len(all_annotators)})")
-        
+            logger.info(
+                f"Cohen's Kappa not applicable for '{control}' (requires exactly 2 annotators, found {len(all_annotators)})"
+            )
+
         return metrics
-    
+
     except Exception as e:
         logger.error(f"Error calculating overall agreement metrics for '{control}': {e}")
         return {"krippendorff_alpha": np.nan, "gwet_ac1": np.nan, "cohen_kappa": np.nan}
@@ -242,11 +249,11 @@ def calculate_overall_agreement_metrics(multi_annotated_tasks: Dict[int, List[Di
 def calculate_simple_agreement_metrics(task_annotations: List[Dict[str, Any]], control: str) -> Dict[str, Any]:
     """
     Calculate simple agreement metrics for a specific control/task combination.
-    
+
     Args:
         task_annotations: List of annotation records for a single task
         control: The control/field name to analyze
-    
+
     Returns:
         Dictionary containing simple agreement metrics
     """
@@ -256,9 +263,9 @@ def calculate_simple_agreement_metrics(task_annotations: List[Dict[str, Any]], c
             "agreement_ratio": np.nan,
             "all_agree": False,
             "most_common_label": None,
-            "label_distribution": {}
+            "label_distribution": {},
         }
-    
+
     # Extract labels for this control
     labels = []
     for annotation in task_annotations:
@@ -267,36 +274,34 @@ def calculate_simple_agreement_metrics(task_annotations: List[Dict[str, Any]], c
             labels.append(str(control_labels[0]))  # Take first label only
         else:
             labels.append(None)  # Missing annotation
-    
+
     # Remove None values for agreement calculation
     valid_labels = [label for label in labels if label is not None]
-    
+
     if not valid_labels:
         return {
             "num_annotators": len(task_annotations),
             "agreement_ratio": np.nan,
             "all_agree": False,
             "most_common_label": None,
-            "label_distribution": {}
+            "label_distribution": {},
         }
-    
+
     label_counts = Counter(valid_labels)
     most_common_label, most_common_count = label_counts.most_common(1)[0]
     agreement_ratio = most_common_count / len(valid_labels)
     all_agree = len(label_counts) == 1
-    
+
     return {
         "num_annotators": len(valid_labels),
         "agreement_ratio": round(agreement_ratio, 3),
         "all_agree": all_agree,
         "most_common_label": most_common_label,
-        "label_distribution": dict(label_counts)
+        "label_distribution": dict(label_counts),
     }
 
 
-def analyze_annotations(
-    records: List[Dict[str, Any]], required_labels: List[str]
-) -> Dict[str, Any]:
+def analyze_annotations(records: List[Dict[str, Any]], required_labels: List[str]) -> Dict[str, Any]:
     """
     Comprehensive analysis of annotations - combines all metrics.
 
@@ -313,18 +318,18 @@ def analyze_annotations(
         # Check if any label in any control matches required_labels
         has_required_label = False
         filtered_labels = {}
-        
+
         for control, labels in (record.get("labels", {}) or {}).items():
             filtered_control_labels = [label for label in labels if label in required_labels]
             if filtered_control_labels:
                 filtered_labels[control] = filtered_control_labels
                 has_required_label = True
-        
+
         if has_required_label:
             record_copy = record.copy()
             record_copy["labels"] = filtered_labels
             filtered_records.append(record_copy)
-    
+
     records = filtered_records
     logger.info(f"Filtered to {len(records)} annotations with required labels: {required_labels}")
 
@@ -364,40 +369,40 @@ def analyze_annotations(
 
     multi_annotated = {tid: annots for tid, annots in task_to_annots.items() if len(annots) > 1}
     logger.info(f"Found {len(multi_annotated)} tasks with multiple annotators")
-    
+
     # Per-task simple agreement analysis
     agreement_data = []
     all_controls = sorted(controls)
-    
+
     for task_id, annotations in multi_annotated.items():
         per_control_metrics = {}
-        
+
         for control in all_controls:
             metrics = calculate_simple_agreement_metrics(annotations, control)
             per_control_metrics[control] = metrics
-        
+
         # Calculate overall agreement across all controls for this task
         valid_agreements = [
-            metrics["agreement_ratio"] 
-            for metrics in per_control_metrics.values() 
+            metrics["agreement_ratio"]
+            for metrics in per_control_metrics.values()
             if not pd.isna(metrics["agreement_ratio"])
         ]
         overall_agreement = round(float(np.mean(valid_agreements)), 3) if valid_agreements else None
-        
+
         any_disagreement = any(
-            not metrics["all_agree"] 
-            for metrics in per_control_metrics.values() 
-            if metrics["num_annotators"] > 1
+            not metrics["all_agree"] for metrics in per_control_metrics.values() if metrics["num_annotators"] > 1
         )
-        
-        agreement_data.append({
-            "task_id": task_id,
-            "num_annotators": len(annotations),
-            "per_control_metrics": per_control_metrics,
-            "overall_simple_agreement": overall_agreement,
-            "has_disagreement": any_disagreement,
-        })
-    
+
+        agreement_data.append(
+            {
+                "task_id": task_id,
+                "num_annotators": len(annotations),
+                "per_control_metrics": per_control_metrics,
+                "overall_simple_agreement": overall_agreement,
+                "has_disagreement": any_disagreement,
+            }
+        )
+
     # Calculate overall agreement metrics across all tasks using advanced methods
     logger.info("Computing advanced agreement metrics across all tasks...")
     overall_agreement_metrics = {}
@@ -459,16 +464,16 @@ def save_analysis_results(analysis: Dict[str, Any], output_dir: str):
                 "task_id": task_data["task_id"],
                 "num_annotators": task_data["num_annotators"],
                 "overall_simple_agreement": task_data.get("overall_simple_agreement"),
-                "has_disagreement": task_data.get("has_disagreement")
+                "has_disagreement": task_data.get("has_disagreement"),
             }
-            
+
             # Add per-control metrics
             for control, metrics in task_data.get("per_control_metrics", {}).items():
                 record = base_record.copy()
                 record["control"] = control
                 record.update({f"control_{k}": v for k, v in metrics.items()})
                 agreement_records.append(record)
-        
+
         if agreement_records:
             agreement_df = pd.DataFrame(agreement_records)
             agreement_file = os.path.join(output_dir, f"agreement_metrics_{timestamp}.csv")
@@ -508,7 +513,7 @@ def save_analysis_results(analysis: Dict[str, Any], output_dir: str):
                 f.write(f"Average overall simple agreement: {np.mean(overall_agreements):.3f}\n")
                 f.write(f"Min simple agreement: {min(overall_agreements):.3f}\n")
                 f.write(f"Max simple agreement: {max(overall_agreements):.3f}\n")
-            
+
             disagreement_count = sum(1 for a in analysis["agreement"] if a.get("has_disagreement", False))
             f.write(f"Tasks with disagreement: {disagreement_count}\n")
             f.write("\n")
@@ -522,7 +527,7 @@ def save_analysis_results(analysis: Dict[str, Any], output_dir: str):
                 for metric_name, value in metrics.items():
                     if not pd.isna(value):
                         f.write(f"  {metric_name.replace('_', ' ').title()}: {value:.3f}\n")
-                        
+
                         # Add interpretation
                         if metric_name in ["krippendorff_alpha", "gwet_ac1", "cohen_kappa"]:
                             if value >= 0.8:
@@ -617,11 +622,11 @@ Agreement Interpretation:
             return
 
         analysis = analyze_annotations(records, args.labels)
-        
+
         if not analysis:
             logger.error("Analysis failed or returned empty results.")
             return
-        
+
         save_analysis_results(analysis, args.output_dir)
 
         # Print summary to console
@@ -631,7 +636,7 @@ Agreement Interpretation:
         logger.info(f"Total tasks: {project_summary.get('total_tasks', 0)}")
         logger.info(f"Tasks with multiple annotators: {project_summary.get('tasks_with_multiple_annotators', 0)}")
         logger.info(f"Required labels: {', '.join(project_summary.get('required_labels', []))}")
-        
+
         # Print simple agreement summary
         if analysis.get("agreement"):
             overall_agreements = [
