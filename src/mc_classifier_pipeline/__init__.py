@@ -12,6 +12,7 @@ from mc_classifier_pipeline import (
     sk_naive_bayes_recipe,
     trainer,
     utils,
+    model_orchestrator,
 )
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "sk_naive_bayes_recipe",
     "trainer",
     "utils",
+    "model_orchestrator",
     "__version__",
 ]
