@@ -5,6 +5,7 @@
 - [Overview](#overview)
 - [Getting Started](#getting-started)
   - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
+  - [Running with Docker](#running-with-docker)
 - [Data Dependencies Tools](#data-dependencies-tools)
 - [A Note on Notebooks](#a-note-on-notebooks)
 
@@ -34,6 +35,79 @@ LABEL_STUDIO_TOKEN="YOUR_LABEL_STUDIO_TOKEN_HERE"
 
 The script will automatically load this variable.
 
+## Running with Docker
+
+For containerized deployment, this project includes Docker configuration that packages all dependencies and provides a consistent runtime environment across different systems.
+
+### Prerequisites
+
+Ensure Docker and Docker Compose are installed on your system:
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (recommended for Windows/macOS)
+- [Docker Engine](https://docs.docker.com/engine/install/) (for Linux)
+
+Make sure you have configured the required environment variables as described in the [Environment Variables](#environment-variables) section above.
+
+### Building the Container
+
+Build the Docker image from the project root:
+```bash
+docker-compose build
+```
+
+### Running Pipeline Components
+
+The Docker setup provides three main services for different pipeline stages:
+
+#### Document Retrieval Pipeline
+```bash
+# Run the complete data collection and Label Studio upload pipeline
+docker-compose run --rm mc-pipeline run-pipeline --config configs/quick_test.json
+
+# Or run individual components
+docker-compose run --rm mc-pipeline doc-retriever --help
+```
+
+#### Model Training and Orchestration
+```bash
+# Run the complete ML pipeline (preprocessing, training, evaluation)
+docker-compose run --rm mc-model-orchestrator model-orchestrator --config configs/quick_test.json
+
+# Run individual ML components
+docker-compose run --rm mc-model-orchestrator preprocess --help
+docker-compose run --rm mc-model-orchestrator train --help
+docker-compose run --rm mc-model-orchestrator evaluate --help
+```
+
+#### Model Inference
+```bash
+# Run inference on new data
+docker-compose run --rm mc-inference inference --model experiments/your_model --input data/new_articles.json
+```
+
+### Development with Docker
+
+For development, mount local source code and data directories:
+```bash
+# The docker-compose.yml already includes volume mounts for:
+# - ./src:/app/src (source code)
+# - ./data:/app/data (data files)
+# - ./experiments:/app/experiments (model outputs)
+# - ./configs:/app/configs (configuration files)
+
+# Interactive shell for debugging
+docker-compose run --rm mc-pipeline bash
+```
+
+### Alternative: Direct Docker Run
+
+You can also run the container directly without docker-compose:
+```bash
+# Build the image
+docker build -t mc-classifier:latest .
+
+# Run a specific command
+docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/configs:/app/configs" --env-file .env mc-classifier:latest doc-retriever --help
+```
 
 For example, if you use Conda, you would run the following to create an environment named `template` with python version 3.10, then activate it and install the package in developer mode:
 ```
