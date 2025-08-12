@@ -30,8 +30,7 @@ FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PYTHONPATH=/app/src             
+    PIP_NO_CACHE_DIR=1
 WORKDIR /app
 
 # install prebuilt wheels (no compiler needed) 
@@ -40,23 +39,13 @@ RUN python -m pip install --upgrade pip && \
     pip install /tmp/wheels/* && \
     rm -rf /tmp/wheels                 # reclaim layer space
 
-# copy source code for runtime execution
-COPY src ./src    
+# Create non-root user and give ownership of /app
+RUN useradd -ms /bin/bash -u 1001 appuser && \
+    chown -R appuser:appuser /app
 
-# Create a flexible entry point script
-RUN echo '#!/bin/bash' > /app/entrypoint.sh && \
-    echo 'case "$1" in' >> /app/entrypoint.sh && \
-    echo '  "run-pipeline") shift; exec python -m mc_classifier_pipeline.run_pipeline "$@" ;;' >> /app/entrypoint.sh && \
-    echo '  "model-orchestrator") shift; exec python -m mc_classifier_pipeline.model_orchestrator "$@" ;;' >> /app/entrypoint.sh && \
-    echo '  "inference") shift; exec python -m mc_classifier_pipeline.inference "$@" ;;' >> /app/entrypoint.sh && \
-    echo '  "preprocess") shift; exec python -m mc_classifier_pipeline.preprocessing "$@" ;;' >> /app/entrypoint.sh && \
-    echo '  "train") shift; exec python -m mc_classifier_pipeline.trainer "$@" ;;' >> /app/entrypoint.sh && \
-    echo '  "evaluate") shift; exec python -m mc_classifier_pipeline.evaluation "$@" ;;' >> /app/entrypoint.sh && \
-    echo '  "doc-retriever") shift; exec python -m mc_classifier_pipeline.doc_retriever "$@" ;;' >> /app/entrypoint.sh && \
-    echo '  *) echo "Usage: $0 {run-pipeline|model-orchestrator|inference|preprocess|train|evaluate|doc-retriever} [args...]"; exit 1 ;;' >> /app/entrypoint.sh && \
-    echo 'esac' >> /app/entrypoint.sh && \
-    chmod +x /app/entrypoint.sh
+# Switch to non-root user
+USER appuser
 
-# Flexible entry point that accepts different pipeline actions
-ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["doc-retriever", "--help"]
+# Default to doc-retriever but allow override
+ENTRYPOINT ["python", "-m"]
+CMD ["mc_classifier_pipeline.doc_retriever", "--help"]
