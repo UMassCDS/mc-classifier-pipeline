@@ -11,8 +11,13 @@ services:
     volumes:
       - ./data:/app/data
       - ./experiments:/app/experiments
-      - ./configs:/app/configs
+      - ./configs:/app/configs:ro
+      - ./src:/app/src:ro
     entrypoint: [ "python", "-m" ]
     command: [ "mc_classifier_pipeline.doc_retriever", "--help" ]
     tty: true
     working_dir: /app
+
+networks:
+  mc-network:
+    driver: bridge
