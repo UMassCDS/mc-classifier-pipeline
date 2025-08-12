@@ -1,57 +1,18 @@
 services:
-  # Data collection and Label Studio upload pipeline
-  mc-pipeline:
+  # Unified ML pipeline container
+  mc-classifier:
     build:
       context: .
       dockerfile: Dockerfile
     image: mc_classifier:latest
-    container_name: mc_pipeline
+    container_name: mc_classifier
     env_file:
       - .env
     volumes:
-      - ./src:/app/src
       - ./data:/app/data
       - ./experiments:/app/experiments
       - ./configs:/app/configs
-    entrypoint: [ "/app/entrypoint.sh" ]
-    command: [ "run-pipeline", "--help" ]
-    tty: true
-    working_dir: /app
-
-  # Complete ML pipeline: preprocessing -> training -> evaluation  
-  mc-model-orchestrator:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: mc_classifier:latest
-    container_name: mc_model_orchestrator
-    env_file:
-      - .env
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      - ./experiments:/app/experiments
-      - ./configs:/app/configs
-    entrypoint: [ "/app/entrypoint.sh" ]
-    command: [ "model-orchestrator", "--help" ]
-    tty: true
-    working_dir: /app
-
-  # Inference pipeline for making predictions
-  mc-inference:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: mc_classifier:latest
-    container_name: mc_inference
-    env_file:
-      - .env
-    volumes:
-      - ./src:/app/src
-      - ./data:/app/data
-      - ./experiments:/app/experiments
-      - ./configs:/app/configs
-    entrypoint: [ "/app/entrypoint.sh" ]
-    command: [ "inference", "--help" ]
+    entrypoint: [ "python", "-m" ]
+    command: [ "mc_classifier_pipeline.doc_retriever", "--help" ]
     tty: true
     working_dir: /app
