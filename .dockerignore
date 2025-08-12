@@ -1,13 +1,40 @@
-env/
+# Virtual environment
+venv/
+
+# Environment file with secrets/API keys
+.env
+
+# Git directories  
 .git/
+.github/
+
+# Python cache and compiled files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Data files
 *.pkl
 *.db
 *.sqlite3
-*.paraquet
+*.parquet
 *.arrow
 data/raw_articles/
+
+# Build
+build/
+
+# Development and testing
+tests/
+notebooks/
+experiments/
+.ruff_cache/
+
+# Documentation
+docs/
+README.md
+CHANGELOG.md
+CONTRIBUTIONS.md
+LICENSE.md
 
