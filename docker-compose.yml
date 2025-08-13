@@ -16,7 +16,3 @@ services:
     command: ["mc_classifier", "doc_retriever", "--help"]
     tty: true
     working_dir: /app
-
-networks:
-  mc-network:
-    driver: bridge
