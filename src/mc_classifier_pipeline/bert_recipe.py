@@ -711,36 +711,36 @@ class BERTTextClassifier:
 
 
 # if __name__ == "__main__":
-# # Standard training
-# classifier = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased")
-# metadata = classifier.train(
-#     project_folder="data",
-#     save_path="models/distilbert-base-uncased",
-#     text_column="text",
-#     label_column="label",
-# )
-# print("Standard training completed!")
+    # # Standard training
+    # classifier = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased")
+    # metadata = classifier.train(
+    #     project_folder="data",
+    #     save_path="models/distilbert-base-uncased",
+    #     text_column="text",
+    #     label_column="label",
+    # )
+    # print("Standard training completed!")
 
-# # Training with optimization
-# classifier_opt = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased", use_optuna=True)
-# metadata_opt = classifier_opt.train(
-#     project_folder="data",
-#     save_path="models/optimized-distilbert",
-#     text_column="text",
-#     label_column="label",
-#     n_trials=1,
-# )
-# print("Optimized training completed!")
+    # # Training with optimization
+    # classifier_opt = BERTTextClassifier(model_name="distilbert/distilbert-base-uncased", use_optuna=True)
+    # metadata_opt = classifier_opt.train(
+    #     project_folder="data",
+    #     save_path="models/optimized-distilbert",
+    #     text_column="text",
+    #     label_column="label",
+    #     n_trials=1,
+    # )
+    # print("Optimized training completed!")
 
-# history = classifier_opt.get_optimization_history()
-# print(history)
+    # history = classifier_opt.get_optimization_history()
+    # print(history)
 
-# # Inference
-# classifier = BERTTextClassifier.load_for_inference(model_path="models/optimized-distilbert")
-# history = classifier.get_optimization_history()
-# print(history)
-# print("Model loaded for inference!")
-# predictions = classifier.predict(
-#     texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
-# )
-# print(predictions)
+    # # Inference
+    # classifier = BERTTextClassifier.load_for_inference(model_path="models/optimized-distilbert")
+    # history = classifier.get_optimization_history()
+    # print(history)
+    # print("Model loaded for inference!")
+    # predictions = classifier.predict(
+    #     texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
+    # )
+    # print(predictions)
