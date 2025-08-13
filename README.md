@@ -8,7 +8,14 @@
 - [Getting Started](#getting-started)
   - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
   - [Environment Variables](#environment-variables)
-- [Running the Scripts]
+- [Running the Scripts](#running-the-scripts)
+  - [Full Workflow](#full-workflow)
+    - [Document Retreival and Label Studio Upload](#1-document-retrieval-and-label-studio-upload)
+    - [Model Orchestrator](#2-model-orchestrator)
+    - [Inference](#3-inference)
+  - [Individual Scripts](#individual-scripts)
+  - [Additional Tools](#additional-tools)
+- [Communication Tools and Code](#communication-tools-and-code)
 
 # Overview
 Sets up 2 pipelines that:
@@ -151,7 +158,7 @@ The pipeline consists of several key scripts that can be run independently or as
 
 ## 1. Document Retrieval and Label Studio Upload
 
-To retrieve documents from Media Cloud and upload them to Label Studio:
+To retrieve documents from Media Cloud and upload them to Label Studio
 
 ```bash
 python -m mc_classifier_pipeline.run_pipeline \
@@ -180,9 +187,9 @@ python -m mc_classifier_pipeline.run_pipeline \
 | `--start-date` | Start date for document retrieval (YYYY-MM-DD format) |
 | `--end-date` | End date for document retrieval (YYYY-MM-DD format) |
 
-## 2. Model Training and Orchestration
+## 2. Model Orchestrator
 
-To train and run classification models using the Model Orchestrator:
+To train and run classification models using the Model Orchestrator
 
 ```bash
 python -m mc_classifier_pipeline.model_orchestrator \
@@ -237,9 +244,9 @@ python -m mc_classifier_pipeline.model_orchestrator \
 | `--experiment-name` | Custom name for the experiment |
 | `--random-seed` | Seed for reproducible results |
 
-## 3. Inference Pipeline
+## 3. Inference
 
-Run inference on articles from URLs using trained models:
+Run inference on articles from URLs using trained models
 
 ```bash
 python -m src.mc_classifier_pipeline.inference \
@@ -303,44 +310,3 @@ The README, CHANGELOG and docstrings are just as important.
 
 Read [Real Python's Documenting Python Code: A Complete Guide](https://realpython.com/documenting-python-code/) for more ideas about effectively documenting code. The `.md` files are written using [Markdown](https://www.markdownguide.org/), a handy formatting language that is automatically rendered in Github.
 
-<!-- ## Reusable Scripts
-Our 'experiment' here is simply counting the occurrence of words from a set of documents, in the form of text files, then writing the counts of each word to a CSV file. This operation is made available to users via the `mc_classifier_pipeline.corpus_counter_script` and by using the [`argparse` command-line parsing library](https://docs.python.org/3/library/argparse.html#module-argparse), we clearly describe the expected input parameters and options, which can be displayed using the `--help` flag. There are [other command-line parsers](https://realpython.com/comparing-python-command-line-parsing-libraries-argparse-docopt-click/) you can use, but `argparse` comes with python, so you don't need to add an extra requirement.
-
-
-Since we have made the package installable and defined it as the `corpus-counter` script in `project.toml`, users can run it using `corpus-counter`, `python -m mc_classifier_pipeline.corpus_counter_script` or `python src/mc_classifier_pipeline/corpus_counter_script.py`, but all work the same way:
-```
-$ corpus-counter --help 
-usage: corpus-counter [-h] [--case-insensitive] csv documents [documents ...]
-
-A script to generate counts of tokens in a corpus
-
-positional arguments:
-  csv                   Path to the output CSV storing token counts. Required.
-  documents             Paths to at least one raw text document that make up the corpus. Required.
-
-options:
-  -h, --help            show this help message and exit
-  --case-insensitive, -c
-                        Default is to have case sensitive tokenization. Use this flag to make the token counting
-                        case insensitive. Optional.
-$ python src/mc_classifier_pipeline/corpus_counter_script.py --help
-usage: corpus_counter_script.py [-h] [--case-insensitive]
-...
-$ python -m mc_classifier_pipeline.corpus_counter_script --help
-usage: corpus_counter_script.py [-h] [--case-insensitive]
-                                csv documents [documents ...]
-
-A script to generate counts of tokens in a corpus
-...
-```
-
-Using the help message, we can understand how to run the script to count all the words in the text files in `data/gutenberg` in a case-insensitive way, saving word counts to a new csv file, `data/gutenberg_counts.csv`:
-```
-$ corpus-counter data/gutenberg_counts.csv data/gutenberg/*.txt --case-insensitive
-INFO : 2023-12-08 12:26:10,770 : mc_classifier_pipeline.corpus_counter_script : Command line arguments: Namespace(csv='data/gutenberg_counts.csv', documents=['data/gutenberg/austen-emma.txt', 'data/gutenberg/austen-persuasion.txt', 'data/gutenberg/austen-sense.txt', 'data/gutenberg/bible-kjv.txt', 'data/gutenberg/blake-poems.txt', 'data/gutenberg/bryant-stories.txt', 'data/gutenberg/burgess-busterbrown.txt', 'data/gutenberg/carroll-alice.txt', 'data/gutenberg/chesterton-ball.txt', 'data/gutenberg/chesterton-brown.txt', 'data/gutenberg/chesterton-thursday.txt'], case_insensitive=True)
-DEBUG : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.word_count : CorpusCounter instantiated, tokenization pattern: \s, case insensitive: True
-INFO : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.corpus_counter_script : Tokenizing document number 0: data/gutenberg/austen-emma.txt
-DEBUG : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.word_count : Tokenizing '[Emma by Jane Austen 1816]
-...
-```
- -->
