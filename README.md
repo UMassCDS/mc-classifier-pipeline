@@ -297,6 +297,118 @@ python -m mc_classifier_pipeline.query_keyword_expander \
     --num-keywords 10
 ```
 
+### Hyperparameter Optimization with Optuna
+
+#### Method 1: Enable optimization during initialization
+
+```python
+from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
+
+# Initialize classifier with Optuna optimization enabled
+classifier = BERTTextClassifier(
+    model_name="bert-base-uncased",
+    use_optuna=True
+)
+
+# Train with optimization (will automatically run Optuna)
+metadata = classifier.train(
+    project_folder="path/to/data",
+    save_path="path/to/save/optimized_model",
+    n_trials=20,                    # Number of optimization trials
+    timeout=3600                    # Optional timeout in seconds
+)
+
+print(f"Best F1 score: {metadata['optuna_optimization']['best_f1_score']}")
+print(f"Best parameters: {metadata['optuna_optimization']['best_parameters']}")
+```
+
+#### Method 2: Enable optimization during training
+
+```python
+from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
+
+# Initialize classifier normally
+classifier = BERTTextClassifier(model_name="bert-base-uncased")
+
+# Train with optimization enabled
+metadata = classifier.train(
+    project_folder="path/to/data",
+    save_path="path/to/save/optimized_model",
+    optimize_hyperparams=True,      # Enable optimization for this training
+    n_trials=15,                    # Number of trials to run
+    timeout=7200                    # 2 hour timeout
+)
+```
+
+#### Method 3: Run optimization separately
+
+```python
+from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
+
+# Initialize classifier
+classifier = BERTTextClassifier(model_name="bert-base-uncased")
+
+# Run hyperparameter optimization only
+study = classifier.optimize_hyperparameters(
+    project_folder="path/to/data",
+    n_trials=25,
+    timeout=1800,                   # 30 minute timeout
+    save_path="path/to/save/study"  # Where to save optimization results
+)
+
+print(f"Best parameters found: {study.best_params}")
+print(f"Best F1 score: {study.best_value}")
+
+# Then train with the best parameters
+best_params = study.best_params
+metadata = classifier.train(
+    project_folder="path/to/data",
+    save_path="path/to/save/final_model",
+    hyperparams={
+        "learning_rate": best_params["learning_rate"],
+        "per_device_train_batch_size": best_params["batch_size"],
+        "num_train_epochs": best_params["num_epochs"],
+        "weight_decay": best_params["weight_decay"],
+        "max_length": best_params["max_length"]
+    }
+)
+```
+
+### Hyperparameter Search Space
+
+The Optuna optimization searches over the following hyperparameters:
+
+| Parameter | Type | Range | Description |
+|-----------|------|-------|-------------|
+| `learning_rate` | Float | 1e-5 to 5e-5 (log scale) | Learning rate for optimizer |
+| `batch_size` | Categorical | [8, 16, 32] | Training batch size |
+| `num_epochs` | Integer | 1 to 4 | Number of training epochs |
+| `weight_decay` | Float | 0.0 to 0.1 | L2 regularization strength |
+| `warmup_ratio` | Float | 0.0 to 0.2 | Fraction of steps for learning rate warmup |
+| `max_length` | Categorical | [256, 512] | Maximum sequence length |
+
+### Study Persistence and Resumption
+
+The optimization study is automatically saved and can be resumed:
+
+**Study Save Locations:**
+- During optimization: `{save_path}/optuna_study.pkl` or `{project_folder}/optuna_study.pkl`
+- With trained model: Study is preserved alongside the model for future analysis
+
+**Resuming Optimization:**
+```python
+# If a study exists, it will automatically resume
+classifier = BERTTextClassifier(model_name="bert-base-uncased")
+study = classifier.optimize_hyperparameters(
+    project_folder="path/to/data",
+    save_path="path/with/existing/study",  # Contains optuna_study.pkl
+    n_trials=10  # Will continue from where it left off
+)
+```
+
+# Data Dependencies Tools
+[Build automation tools](https://en.wikipedia.org/wiki/Build_automation) like [Make](https://en.wikipedia.org/wiki/Make_(software)) have been used to resolve dependencies and compile software since the 1970s. Build automation can also be used in data science and machine learning workflows for [many of the same reasons](https://en.wikipedia.org/wiki/Build_automation#Advantages), like eliminating redundant tasks, maintaining history and improved quality and consistency through automating processes. Using a build tool can also be a documentation and communication tool, since it declares the most common ways to run code and reproduce experiments.
+
 
 # Communication Tools and Code
 When you work with others, it's not just about the code!
