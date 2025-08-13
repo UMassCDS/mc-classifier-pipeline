@@ -336,7 +336,14 @@ class BERTTextClassifier:
         )
 
         logger.info(f"Starting optimization with {n_trials} trials...")
-        study.optimize(
+  def save_callback(study, trial):
+    save_dir = save_path if save_path else project_folder
+    joblib.dump(study, os.path.join(save_dir, "optuna_study.pkl"))
+
+  study.optimize(
+      self._objective, n_trials=n_trials, timeout=timeout, show_progress_bar=True,
+      gc_after_trial=True, callbacks=[save_callback]
+  )
             self._objective, n_trials=n_trials, timeout=timeout, show_progress_bar=True, gc_after_trial=True
         )
 
