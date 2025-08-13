@@ -333,12 +333,26 @@ class BERTTextClassifier:
             self.train_df, self.test_df = self.load_data(project_folder, text_column, label_column)
             self.text_column, self.label_column = text_column, label_column
 
-        study = optuna.create_study(
+  study_path = os.path.join(save_path if save_path else project_folder, "optuna_study.pkl")
+  if os.path.exists(study_path):
+      study = joblib.load(study_path)
+      logger.info(f"Resuming existing study with {len(study.trials)} trials")
+  else:
+      study = optuna.create_study(
+          direction="maximize", sampler=TPESampler(), pruner=MedianPruner(n_startup_trials=5, n_warmup_steps=2)
+      )
             direction="maximize", sampler=TPESampler(), pruner=MedianPruner(n_startup_trials=5, n_warmup_steps=2)
         )
 
         logger.info(f"Starting optimization with {n_trials} trials...")
-        study.optimize(
+  def save_callback(study, trial):
+    save_dir = save_path if save_path else project_folder
+    joblib.dump(study, os.path.join(save_dir, "optuna_study.pkl"))
+
+  study.optimize(
+      self._objective, n_trials=n_trials, timeout=timeout, show_progress_bar=True,
+      gc_after_trial=True, callbacks=[save_callback]
+  )
             self._objective, n_trials=n_trials, timeout=timeout, show_progress_bar=True, gc_after_trial=True
         )
 
