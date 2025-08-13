@@ -5,6 +5,11 @@
 - [Overview](#overview)
 - [Getting Started](#getting-started)
   - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
+- [Usage Guide](#usage-guide)
+  - [BERT Text Classification](#bert-text-classification)
+  - [Data Preparation](#data-preparation)
+  - [Basic Training](#basic-training-no-hyperparameter-optimization)
+  - [Hyperparameter Optimization with Optuna](#hyperparameter-optimization-with-optuna)
 - [Data Dependencies Tools](#data-dependencies-tools)
 - [A Note on Notebooks](#a-note-on-notebooks)
 
@@ -202,7 +207,161 @@ DEBUG : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.word_count : Tokenizing
 ```
  -->
 
-## Data Dependencies Tools
+## Usage Guide
+
+## BERT Text Classification
+
+The pipeline includes a BERT-based text classifier with support for hyperparameter optimization using Optuna. Below are examples of how to use the classifier for different scenarios.
+
+**Requirements:** The hyperparameter optimization functionality requires Optuna, which is included in the project dependencies. If you installed the package using `pip install .`, Optuna should already be available.
+
+### Data Preparation
+
+Your data should be in CSV format with the following structure:
+- Training data: `train.csv` 
+- Test data: `test.csv`
+
+Both files should contain at minimum:
+- A text column (default name: `text`)
+- A label column (default name: `label`)
+
+Example data structure:
+```csv
+text,label
+"This movie was amazing!",positive
+"I didn't like this film.",negative
+```
+
+### Basic Training (No Hyperparameter Optimization)
+
+```python
+from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
+
+# Initialize classifier
+classifier = BERTTextClassifier(model_name="bert-base-uncased")
+
+# Train the model
+metadata = classifier.train(
+    project_folder="path/to/data",  # Folder containing train.csv and test.csv
+    save_path="path/to/save/model", # Where to save the trained model
+    text_column="text",             # Name of text column (optional)
+    label_column="label"            # Name of label column (optional)
+)
+
+print("Training completed!")
+print(f"Final evaluation results: {metadata['final_eval_results']}")
+```
+
+### Hyperparameter Optimization with Optuna
+
+#### Method 1: Enable optimization during initialization
+
+```python
+from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
+
+# Initialize classifier with Optuna optimization enabled
+classifier = BERTTextClassifier(
+    model_name="bert-base-uncased",
+    use_optuna=True
+)
+
+# Train with optimization (will automatically run Optuna)
+metadata = classifier.train(
+    project_folder="path/to/data",
+    save_path="path/to/save/optimized_model",
+    n_trials=20,                    # Number of optimization trials
+    timeout=3600                    # Optional timeout in seconds
+)
+
+print(f"Best F1 score: {metadata['optuna_optimization']['best_f1_score']}")
+print(f"Best parameters: {metadata['optuna_optimization']['best_parameters']}")
+```
+
+#### Method 2: Enable optimization during training
+
+```python
+from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
+
+# Initialize classifier normally
+classifier = BERTTextClassifier(model_name="bert-base-uncased")
+
+# Train with optimization enabled
+metadata = classifier.train(
+    project_folder="path/to/data",
+    save_path="path/to/save/optimized_model",
+    optimize_hyperparams=True,      # Enable optimization for this training
+    n_trials=15,                    # Number of trials to run
+    timeout=7200                    # 2 hour timeout
+)
+```
+
+#### Method 3: Run optimization separately
+
+```python
+from mc_classifier_pipeline.bert_recipe import BERTTextClassifier
+
+# Initialize classifier
+classifier = BERTTextClassifier(model_name="bert-base-uncased")
+
+# Run hyperparameter optimization only
+study = classifier.optimize_hyperparameters(
+    project_folder="path/to/data",
+    n_trials=25,
+    timeout=1800,                   # 30 minute timeout
+    save_path="path/to/save/study"  # Where to save optimization results
+)
+
+print(f"Best parameters found: {study.best_params}")
+print(f"Best F1 score: {study.best_value}")
+
+# Then train with the best parameters
+best_params = study.best_params
+metadata = classifier.train(
+    project_folder="path/to/data",
+    save_path="path/to/save/final_model",
+    hyperparams={
+        "learning_rate": best_params["learning_rate"],
+        "per_device_train_batch_size": best_params["batch_size"],
+        "num_train_epochs": best_params["num_epochs"],
+        "weight_decay": best_params["weight_decay"],
+        "max_length": best_params["max_length"]
+    }
+)
+```
+
+### Hyperparameter Search Space
+
+The Optuna optimization searches over the following hyperparameters:
+
+| Parameter | Type | Range | Description |
+|-----------|------|-------|-------------|
+| `learning_rate` | Float | 1e-5 to 5e-5 (log scale) | Learning rate for optimizer |
+| `batch_size` | Categorical | [8, 16, 32] | Training batch size |
+| `num_epochs` | Integer | 1 to 4 | Number of training epochs |
+| `weight_decay` | Float | 0.0 to 0.1 | L2 regularization strength |
+| `warmup_ratio` | Float | 0.0 to 0.2 | Fraction of steps for learning rate warmup |
+| `max_length` | Categorical | [256, 512] | Maximum sequence length |
+
+### Study Persistence and Resumption
+
+The optimization study is automatically saved and can be resumed:
+
+**Study Save Locations:**
+- During optimization: `{save_path}/optuna_study.pkl` or `{project_folder}/optuna_study.pkl`
+- With trained model: Study is preserved alongside the model for future analysis
+
+**Resuming Optimization:**
+```python
+# If a study exists, it will automatically resume
+classifier = BERTTextClassifier(model_name="bert-base-uncased")
+study = classifier.optimize_hyperparameters(
+    project_folder="path/to/data",
+    save_path="path/with/existing/study",  # Contains optuna_study.pkl
+    n_trials=10  # Will continue from where it left off
+)
+```
+
+# Data Dependencies Tools
 [Build automation tools](https://en.wikipedia.org/wiki/Build_automation) like [Make](https://en.wikipedia.org/wiki/Make_(software)) have been used to resolve dependencies and compile software since the 1970s. Build automation can also be used in data science and machine learning workflows for [many of the same reasons](https://en.wikipedia.org/wiki/Build_automation#Advantages), like eliminating redundant tasks, maintaining history and improved quality and consistency through automating processes. Using a build tool can also be a documentation and communication tool, since it declares the most common ways to run code and reproduce experiments.
 
 In the Machine Learning Operations (MLOps) community these automation tools are often called [task or workflow orchestration](https://www.datarevenue.com/en-blog/airflow-vs-luigi-vs-argo-vs-mlflow-vs-kubeflow). There are many options, such as [Airflow](https://airflow.apache.org/), [Luigi](https://github.com/spotify/luigi), [MLflow](https://mlflow.org/), [Kubeflow](https://www.kubeflow.org/), all with various additional features for versioning experiments, scheduling and visualizations, but at the core they are all built on the same dependency graph principle as the OG [Make](https://opensource.com/article/18/8/what-how-makefile).
