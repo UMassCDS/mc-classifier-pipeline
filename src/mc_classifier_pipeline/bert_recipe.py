@@ -328,7 +328,7 @@ class BERTTextClassifier:
         except ImportError:
             raise ImportError("Optuna required: pip install optuna")
 
-        if not hasattr(self, "train_df") or self.train_df is None:
+        if self.train_df is None:
             self.train_df, self.test_df = self.load_data(project_folder, text_column, label_column)
             self.text_column, self.label_column = text_column, label_column
 
