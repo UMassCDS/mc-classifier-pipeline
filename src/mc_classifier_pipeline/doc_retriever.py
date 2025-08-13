@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from collections import Counter
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -13,14 +13,14 @@ import pandas as pd
 from dotenv import load_dotenv
 from tqdm import tqdm
 
-from . import utils
+from mc_classifier_pipeline.utils import configure_logging
 
 # Configure logging
-utils.configure_logging()
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
-class ArticleStatus(StrEnum):
+class ArticleStatus(str, Enum):
     SUCCESS = "success"
     FAILED_NO_TEXT = "failed_no_text"
     UNKNOWN = "unknown"
