@@ -344,7 +344,7 @@ class BERTTextClassifier:
         self.best_trial = study.best_trial
         self.study = study
         # Save Optuna study to disk in the final model directory
-        if hasattr(self, "study") and self.study is not None:
+        if self.study is not None:
             # Use self.save_path if set, else fallback to project_folder
             save_dir = save_path if save_path else project_folder
             joblib.dump(self.study, os.path.join(save_dir, "optuna_study.pkl"))
