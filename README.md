@@ -3,13 +3,89 @@
 ## Table of Contents
 
 - [Overview](#overview)
+  - [System Diagram](#system-diagram)
+  - [Directory Structure](#directory-structure)
 - [Getting Started](#getting-started)
   - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
-- [Data Dependencies Tools](#data-dependencies-tools)
-- [A Note on Notebooks](#a-note-on-notebooks)
+  - [Environment Variables](#environment-variables)
+- [Running the Scripts]
 
 # Overview
-Sets up a pipeline that takes a user query, retrieves relevant full-text media articles from [Media Cloud](https://www.mediacloud.org), imports it into a user defined Label Studio project, and produces both an annotated dataset and a trained classifier model. Designed for Media Cloud engineers and communication researchers, the pipeline simplifies the end-to-end process of sourcing, labeling, and modeling media content. It eliminates the need for repetitive, manual setup and enables more targeted analysis through iterative query refinement. By improving the initial keyword matching, the pipeline supports more nuanced exploration of patterns in media coverage that are difficult to capture through traditional search alone.
+Sets up 2 pipelines that:
+1. takes a user query, retrieves relevant full-text media articles from [Media Cloud](https://www.mediacloud.org), imports it into a user defined Label Studio project
+2. produces both an annotated dataset and a trained classifier model
+It also uses the trained model to make predictions on a list of URLs. 
+Designed for Media Cloud engineers and communication researchers, the pipeline simplifies the end-to-end process of sourcing, labeling, and modeling media content. It eliminates the need for repetitive, manual setup and enables more targeted analysis through iterative query refinement. By improving the initial keyword matching, the pipeline supports more nuanced exploration of patterns in media coverage that are difficult to capture through traditional search alone.
+
+## System Diagram
+![Simplified System Diagram](images/simplified.png "Simplified System Diagram")
+
+![Detailed System Diagram](images/detailed.png "Detailed System Diagram")
+
+## Directory Structure
+So what does each file in this repository do?
+```
+├── src/                                 # Source code root
+│   └── mc_classifier_pipeline/           # Main Python package
+│       ├── __init__.py                   # Package marker
+        ├── bert_recipe.py                # BERT model recipe
+│       ├── doc_retriever.py              # Retrieves documents from Media Cloud
+        ├── evaluation.py                 # Evaluates models and generates metrics summary with leaderboard
+        ├── inference.py                  # Generates predictions for a list of story URLs using a trained model
+│       ├── label_studio_uploader.py      # Uploads data to Label Studio
+        ├── model_orchestrator.py         # Connects preprocessing, training, and evaluation
+        ├── preprocessing.py              # Preprocesses data uploaded to labelstudio
+│       ├── run_pipeline.py               # Connects document retrieval and labelstudio uploader
+        ├── sk_naive_bayes_recipe.py      # Naive Bayes Model Recipe
+        ├── trainer.py                    # Trains models from config
+│       └── utils.py                      # Utility functions (logging, helpers, etc.)
+├── configs/                                                      # Contains model configs required for orchestrator
+    ├── quick_test.json                                             # Example config file
+    ├── README.md                                                   # Documentation to write configs
+├── data/                                                         # Stores data retrieved from Media Cloud
+    ├── raw_articles/                                               # Full-text from Media Cloud Query
+    ├── .gitignore                                                  # Data files and folders ignored by git
+    ├── SoJosources.csv                                             # Example/source data for the notebook
+├── docs/                                                         # Sphinx documentation source
+│   ├── conf.py                                                     # Sphinx configuration
+│   ├── index.rst                                                   # Sphinx documentation index
+│   ├── make.bat                                                    # Windows build script for docs
+│   └── Makefile                                                    # Unix build script for docs
+├──experiments/project_{project_id}/{experiment timestamp}/       # Generated from running model_orchestrator
+├── train.csv                                                       # Training data
+├── test.csv                                                        # Test data
+├── metadata.json                                                   # Metadata from preprocessing
+└── models/                                               
+    ├── training_summary.json                                       # Training metadata 
+    ├── {YYYYMMDD_HHMMSS_000}/                                      # Timestamped name
+    │   ├── metadata.json                                           # Model-specific metadata
+    │   ├── label_encoder.pkl                                       # Pickled label encoder file
+    │   ├── (HF) config.json, pytorch_model.bin, tokenizer.*        # Pickled model files
+    │   └── (sklearn) model.pkl, vectorizer.pkl                     # Pickled model files
+    ├── results.csv                                                 # Leaderboard
+    └── evaluation_summary.json                                     # More details about models on leaderboard
+├── notebooks/                           # Stores data retrieved from Media Cloud
+    ├── exploration.py                   # Contains EDA and Media Cloud API usage examples
+├── tests/                               # Unit and integration tests
+│   └── test_dummy.py                    # Example test file
+├── .dockerignore
+├── .gitignore
+├── CHANGELOG.md                         # Project version history and changes
+├── CONTRIBUTIONS.md                     # Contribution guidelines
+├── docker-compose.yml                   # Multi-container Docker orchestration
+├── Dockerfile                           # Docker build instructions for containerization
+├── LICENSE.md                           # License for project usage
+├── pyproject.toml                       # Project metadata, dependencies, and build tools
+├── README.md                            # Project overview and documentation (this file)
+├── data/                                # Data files (not tracked by git)
+│   ├── SoJosources.csv                  # Example/source data file
+├── notebooks/                           # Jupyter notebooks for exploration
+│   └── exploration.ipynb                # Example exploratory notebook
+├── .github/                             # GitHub configuration
+│   └── workflows/
+│       └── python_package.yml           # GitHub Actions workflow for CI/testing
+├── .gitignore                           # Files and folders ignored by git
+```
 
 # Getting Started
 ## Installing Dependencies and Packages
@@ -22,7 +98,7 @@ Use these steps for setting up a development environment to install and work wit
   <!-- - If you will be changing the code and running tests, you can install it by running `pip install -e .[test,dev]`. The `-e/--editable` flag means local changes to the project code will always be available with the package is imported. You wouldn't use this in production, but it's useful for development.
   - Note for zsh users: use `pip install -e .'[test,dev]'` -->
 
-### Environment Variables
+## Environment Variables
 
 To use the document retriever script, you must set the `MC_API_KEY` environment variable. To use the label studio uploader script, you must set `LABEL_STUDIO_HOST` and `LABEL_STUDIO_TOKEN` environment variables. Both scripts uses the `python-dotenv` library, so you can create a `.env` file in the project's root directory:
 
@@ -67,53 +143,151 @@ Collecting numpy
 ...
 ```
 
-## Specifying Requirements
-In order for users to install your package and all the libraries it depends on by running `pip install`, you need to provide a `pyproject.toml` file. This has two important sections:
-- `project`: List project metadata and version information and all library requirements/dependencies, including for testing or development environments. This is the main file you will work with and add requirements to. Some dependencies 
-- `build-system`: Define the build tool that is used to package and distribute your code. For this project, we use [SetupTools](https://setuptools.pypa.io/en/latest/userguide/quickstart.html).
+# Running the Scripts
 
-If you'd like to learn more about python packaging, refer to [the Python Packaging User Guide](https://packaging.python.org/en/latest/) or [PEP 517](https://peps.python.org/pep-0517/#build-requirements).
+The pipeline consists of several key scripts that can be run independently or as part of the full workflow.
 
-### Requirements via conda environment files
-[Anaconda](https://www.anaconda.com/download/) and its bare bones counterpart, [Miniconda](https://docs.anaconda.com/free/miniconda/index.html), are especially useful if your project depends on libraries that are difficult to install in the standard pythonic way, such as [GPU libraries](https://docs.anaconda.com/free/working-with-conda/packages/gpu-packages/). If this is the case, you should also share a [Conda environment file](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-file-manually) with your code. The conda virtual environment will need to be created and activated before any `pip install` steps. Installations with conda dependencies are usually a little more complicated, so make sure you include step-by-step instructions in documentation. 
+# Full Workflow
 
-### Containerized applications
-In cases when its important that your software work exactly the same on every operating system or you want to abstract away difficult installation steps for end user, you can consider creating a [Docker container](https://www.docker.com/resources/what-container/). This is often appropriate deploying services in the cloud or providing an application for a tech-savvy person to use on their own. However, it's not necessary for most of our projects. 
+## 1. Document Retrieval and Label Studio Upload
 
+To retrieve documents from Media Cloud and upload them to Label Studio:
 
-## Directory Structure
-So what does each file in this repository do?
+```bash
+python -m mc_classifier_pipeline.run_pipeline \
+ --query "your search query" \
+ --project-id YOUR_PROJECT_ID \
+ --start-date YYYY-MM-DD \
+ --end-date YYYY-MM-DD
 ```
-.
-├── src/                                 # Source code root
-│   └── mc_classifier_pipeline/           # Main Python package
-│       ├── __init__.py                   # Package marker
-│       ├── doc_retriever.py              # Retrieves documents from Media Cloud
-│       ├── label_studio_uploader.py      # Uploads data to Label Studio
-│       ├── run_pipeline.py               # Main pipeline runner script
-│       └── utils.py                      # Utility functions (logging, helpers, etc.)
-├── CHANGELOG.md                         # Project version history and changes
-├── CONTRIBUTIONS.md                     # Contribution guidelines
-├── Dockerfile                           # Docker build instructions for containerization
-├── docker-compose.yml                   # Multi-container Docker orchestration
-├── LICENSE.md                           # License for project usage
-├── pyproject.toml                       # Project metadata, dependencies, and build tools
-├── README.md                            # Project overview and documentation (this file)
-├── data/                                # Data files (not tracked by git)
-│   ├── SoJosources.csv                  # Example/source data file
-├── docs/                                # Sphinx documentation source
-│   ├── conf.py                          # Sphinx configuration
-│   ├── index.rst                        # Sphinx documentation index
-│   ├── make.bat                         # Windows build script for docs
-│   └── Makefile                         # Unix build script for docs
-├── notebooks/                           # Jupyter notebooks for exploration
-│   └── exploration.ipynb                # Example exploratory notebook
-├── tests/                               # Unit and integration tests
-│   └── test_dummy.py                    # Example test file
-├── .github/                             # GitHub configuration
-│   └── workflows/
-│       └── python_package.yml           # GitHub Actions workflow for CI/testing
-├── .gitignore                           # Files and folders ignored by git
+
+### Example
+
+```bash
+python -m mc_classifier_pipeline.run_pipeline \
+ --query "climate change AND (protest OR activist)" \
+ --project-id 123 \
+ --start-date 2023-01-01 \
+ --end-date 2023-12-31
+```
+
+### Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `--query` | Search terms with boolean operators (AND, OR) |
+| `--project-id` | Label Studio project identifier |
+| `--start-date` | Start date for document retrieval (YYYY-MM-DD format) |
+| `--end-date` | End date for document retrieval (YYYY-MM-DD format) |
+
+## 2. Model Training and Orchestration
+
+To train and run classification models using the Model Orchestrator:
+
+```bash
+python -m mc_classifier_pipeline.model_orchestrator \
+ --project-id YOUR_PROJECT_ID \
+ --train-ratio TRAIN_SPLIT_RATIO \
+ --output-dir OUTPUT_DIRECTORY \
+ --target-label 'LABEL_NAME' \
+ --models-config CONFIG_FILE_PATH
+```
+
+### Examples
+
+**Basic model training:**
+```bash
+python -m mc_classifier_pipeline.model_orchestrator \
+ --project-id 1 \
+ --train-ratio 0.7 \
+ --output-dir experiments \
+ --target-label 'Analysis' \
+ --models-config configs/quick_test.json
+```
+
+**Resume from existing experiment:**
+```bash
+python -m mc_classifier_pipeline.model_orchestrator \
+ --experiment-dir src/mc_classifier_pipeline/experiments/project_1/20250811_092812 \
+ --target-label 'Analysis' \
+ --models-config configs/quick_test.json
+```
+
+**Custom experiment with specific settings:**
+```bash
+python -m mc_classifier_pipeline.model_orchestrator \
+ --project-id 10 \
+ --train-ratio 0.8 \
+ --output-dir experiments \
+ --experiment-name climate_sentiment_v1 \
+ --random-seed 123 \
+ --models-config configs/quick_test.json
+```
+
+### Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `--project-id` | Label Studio project ID containing labeled data |
+| `--train-ratio` | Proportion of data for training (e.g., 0.7 = 70% train, 30% test) |
+| `--output-dir` | Directory to save experiment results |
+| `--target-label` | Name of the label to predict |
+| `--models-config` | JSON configuration file specifying models to train |
+| `--experiment-dir` | Path to existing experiment (for resuming/rerunning) |
+| `--experiment-name` | Custom name for the experiment |
+| `--random-seed` | Seed for reproducible results |
+
+## 3. Inference Pipeline
+
+Run inference on articles from URLs using trained models:
+
+```bash
+python -m src.mc_classifier_pipeline.inference \
+ --url-file URL_LIST_FILE \
+ --model-dir MODEL_DIRECTORY
+```
+
+### Examples
+
+**Basic usage:**
+```bash
+python -m src.mc_classifier_pipeline.inference \
+ --url-file url_list.txt \
+ --model-dir experiments/project_1/20250806_103847/models/20250806_123513_000
+```
+
+**With custom parameters:**
+```bash
+python -m src.mc_classifier_pipeline.inference \
+ --url-file my_urls.txt \
+ --model-dir models/bert_model \
+ --output-file my_predictions.csv \
+ --batch-size 16 \
+ --start-date 2025-01-01 \
+ --end-date 2025-06-01
+```
+
+### Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `--url-file` | Text file containing URLs to process (one per line) |
+| `--model-dir` | Directory containing trained model files |
+| `--output-file` | Output CSV file for predictions (optional) |
+| `--batch-size` | Number of articles to process in each batch (optional) |
+| `--start-date` | Filter articles by start date (YYYY-MM-DD format, optional) |
+| `--end-date` | Filter articles by end date (YYYY-MM-DD format, optional) |
+
+# Individual Scripts
+
+## Additional Tools
+
+### Query Keyword Expansion
+To expand your search query with related terms:
+```bash
+python -m mc_classifier_pipeline.query_keyword_expander \
+    --query "your initial query" \
+    --num-keywords 10
 ```
 
 
@@ -128,37 +302,6 @@ The README, CHANGELOG and docstrings are just as important.
 - Sphinx  : Create html documentation for your functions based on the docstrings you write in the code. Use [Sphinx](https://www.sphinx-doc.org/en/master/index.html) to streamline the documentation process.
 
 Read [Real Python's Documenting Python Code: A Complete Guide](https://realpython.com/documenting-python-code/) for more ideas about effectively documenting code. The `.md` files are written using [Markdown](https://www.markdownguide.org/), a handy formatting language that is automatically rendered in Github.
-
-# Tests
-Although it's [impossible to generally prove that your code is bug-free](https://en.wikipedia.org/wiki/Undecidable_problem), automated testing is a valuable tool. It provides:
-- Proof that your code works as intended in most common examples and important edge cases
-- Instant feedback on whether changes to the code broke its functionality
-- Examples of how to use the code, a type of documentation
-
-This repository has tests configured using [pytest](https://pytest.org/) and the Github action defined in `.github/workflows/python_package.yml` will run tests every time you make a pull request to the main branch of the repository. [Unittest](https://docs.python.org/3/library/unittest.html#module-unittest) and [nose2](https://docs.nose2.io/en/latest/) are other common test frameworks for python.
-
-You can run tests locally using `pytest` or `python -m pytest` from the command line from the root of the repository or configure them to be [run with a debugger in your IDE](https://code.visualstudio.com/docs/python/testing). For example:
-```
-$ pytest
-======================== test session starts ========================
-platform linux -- Python 3.10.4, pytest-7.1.2, pluggy-1.0.0
-rootdir: /home/virginia/workspace/PythonProjectTemplate
-collected 2 items
-
-tests/test_sample_module.py .
-```
-
-Read the following articles for tips on writing your own tests:
-- [Getting Started With Testing in Python](https://realpython.com/python-testing/)
-- [13 Tips for Writing Useful Unit Tests](https://betterprogramming.pub/13-tips-for-writing-useful-unit-tests-ca20706b5368)
-- [Why Good Developers Write Bad Unit Tests](https://mtlynch.io/good-developers-bad-tests)
-
-# Reproducible Experiments
-In practice, data science often relies on pipelining many operations together to prepare data, extract features, then train and evaluate models or produce analysis. Whether someone can reproduce your experiments depends on how clearly you lay out the pipeline and parameters that you use for each 'node' in the pipeline, including stating where to find the input data and how it should be formatted.
-
-In practice, you should write scripts that are flexible enough to change the parameters you'd like to experiment with and define the pipeline using a directed acyclic graph (DAG), where the outputs from earlier steps become the dependencies for later ones. It's good practice to draw out the DAG for your experiment first, noting inputs, outputs and parameters, before you code scripts for the pipeline, like this:
-
-![DAG diagram](./dag_workflow.png)
 
 <!-- ## Reusable Scripts
 Our 'experiment' here is simply counting the occurrence of words from a set of documents, in the form of text files, then writing the counts of each word to a CSV file. This operation is made available to users via the `mc_classifier_pipeline.corpus_counter_script` and by using the [`argparse` command-line parsing library](https://docs.python.org/3/library/argparse.html#module-argparse), we clearly describe the expected input parameters and options, which can be displayed using the `--help` flag. There are [other command-line parsers](https://realpython.com/comparing-python-command-line-parsing-libraries-argparse-docopt-click/) you can use, but `argparse` comes with python, so you don't need to add an extra requirement.
@@ -201,20 +344,3 @@ DEBUG : 2023-12-08 12:26:10,771 : mc_classifier_pipeline.word_count : Tokenizing
 ...
 ```
  -->
-
-## Data Dependencies Tools
-[Build automation tools](https://en.wikipedia.org/wiki/Build_automation) like [Make](https://en.wikipedia.org/wiki/Make_(software)) have been used to resolve dependencies and compile software since the 1970s. Build automation can also be used in data science and machine learning workflows for [many of the same reasons](https://en.wikipedia.org/wiki/Build_automation#Advantages), like eliminating redundant tasks, maintaining history and improved quality and consistency through automating processes. Using a build tool can also be a documentation and communication tool, since it declares the most common ways to run code and reproduce experiments.
-
-In the Machine Learning Operations (MLOps) community these automation tools are often called [task or workflow orchestration](https://www.datarevenue.com/en-blog/airflow-vs-luigi-vs-argo-vs-mlflow-vs-kubeflow). There are many options, such as [Airflow](https://airflow.apache.org/), [Luigi](https://github.com/spotify/luigi), [MLflow](https://mlflow.org/), [Kubeflow](https://www.kubeflow.org/), all with various additional features for versioning experiments, scheduling and visualizations, but at the core they are all built on the same dependency graph principle as the OG [Make](https://opensource.com/article/18/8/what-how-makefile).
-
-Some of these tools can take a lot of work to set up, so discuss the trade-offs with your team to decide what you'd like to use. In the early stages of a project, we recommend using something easy to set up, like [Make](https://opensource.com/article/18/8/what-how-makefile).
-## A Note on Notebooks
-We have also included an example Jupyter notebook
-
-Jupyter notebooks are useful tools for exploratory data analysis, prototyping baseline models and creating visualizations. However, they are _not_ an acceptable way to hand-off code for others to reproduce. Have you ever tried to run someone else's notebook, only to find out a cell was deleted, and you have no idea what it was supposed to do?
-
-[Don't put data science notebooks into production](https://martinfowler.com/articles/productize-data-sci-notebooks.html), they are [hard to test, version, parametrize and keep track of state](https://www.reddit.com/r/datascience/comments/ezh50g/jupyter_notebooks_in_productionno_just_no/).
-
-There _are_ [companies that use notebooks in production architecture](https://blog.goodaudience.com/inside-netflixs-notebook-driven-architecture-aedded32145e), but they have entire Devops organizations to help configure deployment and _still_ use workflow tools like [papermill](https://papermill.readthedocs.io/en/latest/) and Airflow to parametrize notebook dependencies. Unless you are willing to put in the effort to parametrize your notebooks in pipeline workflows, don't use them when stability and reproducibility matter.
-
-Best practices for working with notebooks are changing as they become more popular. However, for now most of these services are too expensive for our partners or difficult to configure. You can use a notebook for prototyping and exploratory analysis, but once the project moves forward, use [`nbconvert`](https://linuxhint.com/convert-jupyter-notebook-python/) to convert the notebook to python code, then add some tests!
