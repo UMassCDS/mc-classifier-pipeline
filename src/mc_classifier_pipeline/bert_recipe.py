@@ -1,3 +1,4 @@
+import gc
 import os
 import json
 import logging
@@ -287,11 +288,12 @@ class BERTTextClassifier:
                 eval_result = trainer.evaluate()
 
                 del trainer
-                del self.model
+                self.model = None
+                gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
 
-                return eval_result["eval_f1"]
+                return eval_result.get("eval_f1", 0.0)
 
         except Exception as e:
             logger.error(f"Trial failed: {e}")
