@@ -45,5 +45,4 @@ COPY src ./src
 #     chown -R appuser:appuser /app
 # USER appuser
 
-ENTRYPOINT ["python", "-m"]
-CMD ["mc_classifier_pipeline.doc_retriever", "--help"]
+CMD ["mc_classifier", "doc_retriever", "--help"]
