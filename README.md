@@ -24,9 +24,11 @@ Sets up 2 pipelines that:
 It also uses the trained model to make predictions on a list of URLs. 
 Designed for Media Cloud engineers and communication researchers, the pipeline simplifies the end-to-end process of sourcing, labeling, and modeling media content. It eliminates the need for repetitive, manual setup and enables more targeted analysis through iterative query refinement. By improving the initial keyword matching, the pipeline supports more nuanced exploration of patterns in media coverage that are difficult to capture through traditional search alone.
 
-## System Diagram
+## System Diagrams
+### Simplified Diagram
 ![Simplified System Diagram](images/simplified.png "Simplified System Diagram")
 
+### Detailed Diagram
 ![Detailed System Diagram](images/detailed.png "Detailed System Diagram")
 
 ## Directory Structure
