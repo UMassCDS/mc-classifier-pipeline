@@ -51,7 +51,7 @@ Make sure you have configured the required environment variables as described in
 
 Build the Docker image from the project root:
 ```bash
-docker-compose build
+docker compose build
 ```
 
 ### Running Pipeline Components
@@ -61,31 +61,31 @@ The Docker container provides a unified interface for all pipeline components. Y
 #### Document Retrieval and Data Collection
 ```bash
 # Get help for document retriever
-docker-compose run --rm mc-classifier mc_classifier_pipeline.doc_retriever --help
+docker compose run --rm mc-classifier retrieve-mc-docs --help
 
 # Run the complete data collection pipeline
-docker-compose run --rm mc-classifier mc_classifier_pipeline.run_pipeline --config configs/quick_test.json
+docker compose run --rm mc-classifier mc-pipeline --config configs/quick_test.json
 ```
 
 #### Model Training and Evaluation
 ```bash
 # Preprocess data
-docker-compose run --rm mc-classifier mc_classifier_pipeline.preprocessing --help
+docker compose run --rm mc-classifier mc-preprocess --help
 
 # Train models
-docker-compose run --rm mc-classifier mc_classifier_pipeline.trainer --config configs/quick_test.json
+docker compose run --rm mc-classifier mc-train --config configs/quick_test.json
 
 # Evaluate models
-docker-compose run --rm mc-classifier mc_classifier_pipeline.evaluation --help
+docker compose run --rm mc-classifier mc-evaluate --help
 
 # Run the complete ML orchestration pipeline
-docker-compose run --rm mc-classifier mc_classifier_pipeline.model_orchestrator --config configs/quick_test.json
+docker compose run --rm mc-classifier mc-model-orchestrator --config configs/quick_test.json
 ```
 
 #### Model Inference
 ```bash
 # Run inference on new data
-docker-compose run --rm mc-classifier mc_classifier_pipeline.inference --model experiments/your_model --input data/new_articles.json
+docker compose run --rm mc-classifier mc-inference --model experiments/your_model --input data/new_articles.json
 ```
 
 ### Development with Docker
@@ -95,21 +95,22 @@ For development, mount local source code and data directories:
 # The docker-compose.yml includes volume mounts for:
 # - ./data:/app/data (data files)
 # - ./experiments:/app/experiments (model outputs)
-# - ./configs:/app/configs (configuration files)
+# - ./configs:/app/configs:ro (configuration files, read-only)
+# - ./src:/app/src:ro (source code, read-only)
 
 # Interactive shell for debugging
-docker-compose run --rm mc-classifier bash
+docker compose run --rm mc-classifier bash
 ```
 
 ### Alternative: Direct Docker Run
 
-You can also run the container directly without docker-compose:
+You can also run the container directly without docker compose:
 ```bash
 # Build the image
 docker build -t mc-classifier:latest .
 
 # Run any module
-docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/configs:/app/configs" --env-file .env mc-classifier:latest mc_classifier_pipeline.doc_retriever --help
+docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/configs:/app/configs" --env-file .env mc-classifier:latest retrieve-mc-docs --help
 ```
 
 For example, if you use Conda, you would run the following to create an environment named `template` with python version 3.10, then activate it and install the package in developer mode:
