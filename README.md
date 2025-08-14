@@ -3,7 +3,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-  - [System Diagram](#system-diagram)
+  - [System Diagrams](#system-diagrams)
   - [Directory Structure](#directory-structure)
 - [Getting Started](#getting-started)
   - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
