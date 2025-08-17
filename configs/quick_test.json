@@ -1,0 +1,23 @@
+{
+  "models": [
+    {
+      "name": "fast_bert",
+      "description": "Quick BERT test with minimal epochs",
+      "model_type": "BertFineTune",
+      "model_params": {
+        "model_name": "distilbert-base-uncased",
+        "learning_rate": 5e-5,
+        "num_epochs": 1,
+        "batch_size": 32
+      }
+    },
+    {
+      "name": "quick_nb",
+      "description": "Fast Naive Bayes baseline",
+      "model_type": "SklearnMultinomialNaiveBayes",
+      "model_params": {
+        "alpha": 1.0
+      }
+    }
+  ]
+}
