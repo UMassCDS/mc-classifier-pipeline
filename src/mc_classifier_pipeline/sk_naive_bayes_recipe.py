@@ -16,7 +16,7 @@ import optuna
 from optuna.pruners import MedianPruner
 from optuna.samplers import TPESampler
 
-from mc_classifier_pipeline.utils import configure_logging  
+from mc_classifier_pipeline.utils import configure_logging
 
 
 # Set up logging
@@ -35,7 +35,7 @@ class SKNaiveBayesTextClassifier:
         metadata (dict): Metadata about the trained model and process.
         best_params (dict): Best hyperparameters found by Optuna.
         study (optuna.Study): Optuna study object for optimization history.
-    
+
     Note:
         Pruning is automatically disabled for single-fold cross-validation since it requires
         multiple scores to compare against. For optimal pruning performance, use cv_folds > 1.
@@ -187,7 +187,7 @@ class SKNaiveBayesTextClassifier:
             # Single CV fold produces only one score, making pruning ineffective
             if cv_folds > 1:
                 trial.report(mean_score, step=0)
-                
+
                 # Check if trial should be pruned
                 if trial.should_prune():
                     raise optuna.TrialPruned()
@@ -231,7 +231,7 @@ class SKNaiveBayesTextClassifier:
             study_name = f"naive_bayes_optimization_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         sampler = TPESampler(seed=sampler_seed)
-        
+
         # Only use pruning if we have multiple CV folds
         # Single CV fold produces only one score, making pruning ineffective
         if cv_folds > 1:
@@ -333,10 +333,12 @@ class SKNaiveBayesTextClassifier:
             }
             default_hyperparams.update(optimized_params)
             logger.info("Using optimized hyperparameters")
-            
+
             # Warn about pruning behavior for single CV fold
             if cv_folds == 1:
-                logger.warning("Single CV fold detected: pruning will be disabled as it requires multiple scores to compare")
+                logger.warning(
+                    "Single CV fold detected: pruning will be disabled as it requires multiple scores to compare"
+                )
 
         if hyperparams:
             default_hyperparams.update(hyperparams)
