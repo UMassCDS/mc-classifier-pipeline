@@ -14,11 +14,11 @@ from label_studio_sdk.client import LabelStudio
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from mc_classifier_pipeline import utils
+from mc_classifier_pipeline.utils import configure_logging
 
 
 # Configure logging
-utils.configure_logging()
+configure_logging()
 logger = logging.getLogger(__name__)
 
 # Configuration and constants

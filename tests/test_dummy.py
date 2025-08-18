@@ -22,6 +22,8 @@ def test_package_imports():
         sk_naive_bayes_recipe,
         trainer,
         utils,
+        model_orchestrator,
+        annotation_analysis,
     )
 
     # Test that modules exist
@@ -34,6 +36,8 @@ def test_package_imports():
     assert sk_naive_bayes_recipe is not None
     assert trainer is not None
     assert utils is not None
+    assert model_orchestrator is not None
+    assert annotation_analysis is not None
 
 
 def test_utils_configure_logging():

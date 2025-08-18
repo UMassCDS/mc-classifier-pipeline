@@ -17,6 +17,7 @@ You should also add project tags for each release in Github, see [Managing relea
 - Add `evaluation.py` for evaluating multiple models and generating metrics summary with leaderboard
 - Add `trainer.py` for training multiple model recipes from configuration files
 - Add `sk_naive_bayes_recipe.py` for scikit-learn based text classification
+- Add `inference.py` for generating predictions for a list of story URLs using a trained model
 - Add `model_orchestrator.py` for connecting preprocessing, training, and evaluation
 
 ### Changed
@@ -29,7 +30,7 @@ You should also add project tags for each release in Github, see [Managing relea
 - Modify `trainer` to use metadata from preprocessing more effectively
 - Modify `trainer` to handle multilabel classification
 - Modify `evaluation` to handle multilabel classification
-
+- Modify `evaluation` to accept optional args in main
 
 
 
