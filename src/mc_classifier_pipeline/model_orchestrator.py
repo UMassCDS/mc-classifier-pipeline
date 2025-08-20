@@ -84,6 +84,7 @@ Output Structure:
 
 import argparse
 import logging
+import os
 import json
 from pathlib import Path
 import pandas as pd
@@ -94,6 +95,9 @@ import mc_classifier_pipeline.evaluation as evaluator
 
 configure_logging()
 logger = logging.getLogger(__name__)
+# Configuration and constants
+LABEL_STUDIO_HOST = os.getenv("LABEL_STUDIO_HOST")
+LABEL_STUDIO_TOKEN = os.getenv("LABEL_STUDIO_TOKEN")
 
 
 def parse_cli():
@@ -281,4 +285,10 @@ def main() -> None:  # entry-point in pyproject.toml
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    # Re-load env vars in case running as script
+    LABEL_STUDIO_HOST = os.getenv("LABEL_STUDIO_HOST")
+    LABEL_STUDIO_TOKEN = os.getenv("LABEL_STUDIO_TOKEN")
     main()
