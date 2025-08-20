@@ -2,14 +2,16 @@ import os
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any, List
+import ast
 
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MultiLabelBinarizer
+from sklearn.multioutput import MultiOutputClassifier
 from sklearn.model_selection import cross_val_score
 import joblib
 import optuna
@@ -44,8 +46,10 @@ class SKNaiveBayesTextClassifier:
     def __init__(self):
         self.vectorizer = TfidfVectorizer()
         self.model = MultinomialNB()
-        self.label_encoder = LabelEncoder()
+        self.label_encoder = None
+        self.label_binarizer = None
         self.metadata = {}
+        self.is_multi_label = False
         self.best_params = None
         self.study = None
 
@@ -82,12 +86,92 @@ class SKNaiveBayesTextClassifier:
 
         return train_df, test_df
 
+    def parse_labels(self, label_data, target_label=None, target_labels=None):
+        """Parse label data from different formats"""
+        if isinstance(label_data, str):
+            try:
+                # Try to parse as categorized format: {"sentiment": ["Positive"], "tags": ["Opinion"]}
+                parsed = ast.literal_eval(label_data)
+                if isinstance(parsed, dict):
+                    # Categorized format
+                    return parsed
+                else:
+                    # List format: ["Positive", "Opinion"] or single string
+                    return parsed if isinstance(parsed, list) else [parsed]
+            except (ValueError, SyntaxError):
+                # Simple string label
+                return [label_data]
+        elif isinstance(label_data, list):
+            return label_data
+        else:
+            return [label_data]
+
+    def prepare_binary_labels(self, df, target_label, text_column="text", label_column="label"):
+        """Prepare data for binary classification"""
+        prepared_data = []
+
+        for _, row in df.iterrows():
+            text = row[text_column]
+            label_data = self.parse_labels(row[label_column])
+
+            # Check if target label is present
+            label_present = False
+            if isinstance(label_data, dict):
+                # Categorized format
+                for category_labels in label_data.values():
+                    if isinstance(category_labels, list):
+                        if target_label in category_labels:
+                            label_present = True
+                            break
+                    else:
+                        if target_label == category_labels:
+                            label_present = True
+                            break
+            else:
+                # List or single format
+                label_list = label_data if isinstance(label_data, list) else [label_data]
+                label_present = target_label in label_list
+
+            prepared_data.append({text_column: text, label_column: 1 if label_present else 0})
+
+        return pd.DataFrame(prepared_data)
+
+    def prepare_multilabel_labels(self, df, target_labels, text_column="text", label_column="label"):
+        """Prepare data for multi-label classification"""
+        prepared_data = []
+
+        for _, row in df.iterrows():
+            text = row[text_column]
+            label_data = self.parse_labels(row[label_column])
+
+            # Extract relevant labels for this multi-label task
+            relevant_labels = []
+            if isinstance(label_data, dict):
+                # Categorized format - flatten all labels
+                for category_labels in label_data.values():
+                    if isinstance(category_labels, list):
+                        relevant_labels.extend(category_labels)
+                    else:
+                        relevant_labels.append(category_labels)
+            else:
+                # List or single format
+                relevant_labels = label_data if isinstance(label_data, list) else [label_data]
+
+            # Filter to only target labels
+            present_labels = [label for label in relevant_labels if label in target_labels]
+
+            prepared_data.append({text_column: text, label_column: present_labels})
+
+        return pd.DataFrame(prepared_data)
+
     def prepare_datasets(
         self,
         train_df: pd.DataFrame,
         test_df: pd.DataFrame,
         text_column: str = "text",
         label_column: str = "label",
+        is_multi_label: bool = False,
+        target_labels: Optional[List[str]] = None,
     ):
         """
         Prepare training and test datasets for the classifier.
@@ -103,22 +187,42 @@ class SKNaiveBayesTextClassifier:
         """
         # Encode labels
         all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
-        self.label_encoder.fit(all_labels)
+        if is_multi_label:
+            # Multi-label classification
+            if target_labels is None:
+                raise ValueError("target_labels must be provided for multi-label classification")
 
-        train_labels = self.label_encoder.transform(train_df[label_column])
-        test_labels = self.label_encoder.transform(test_df[label_column])
+            self.label_binarizer = MultiLabelBinarizer(classes=target_labels)
 
-        train_texts = train_df[text_column].tolist()
-        test_texts = test_df[text_column].tolist()
+            train_labels_binary = self.label_binarizer.fit_transform(train_df[label_column].tolist())
+            test_labels_binary = self.label_binarizer.transform(test_df[label_column].tolist())
 
-        logger.info(f"Number of unique labels: {len(self.label_encoder.classes_)}")
-        logger.info(
-            f"Label mapping: {dict(zip(self.label_encoder.classes_, range(len(self.label_encoder.classes_))))}"
-        )
+            logger.info(f"Multi-label classes: {self.label_binarizer.classes_.tolist()}")
 
-        return (train_texts, train_labels), (test_texts, test_labels)
+            train_texts = train_df[text_column].tolist()
+            test_texts = test_df[text_column].tolist()
 
-    def compute_metrics(self, y_true, y_pred):
+            return (train_texts, train_labels_binary), (test_texts, test_labels_binary)
+
+        else:
+            # Single-label or binary classification
+            self.label_encoder = LabelEncoder()  # Always assign a new LabelEncoder
+            self.label_encoder.fit(all_labels)
+
+            train_labels = self.label_encoder.transform(train_df[label_column])
+            test_labels = self.label_encoder.transform(test_df[label_column])
+
+            train_texts = train_df[text_column].tolist()
+            test_texts = test_df[text_column].tolist()
+
+            logger.info(f"Number of unique labels: {len(self.label_encoder.classes_)}")
+            logger.info(
+                f"Label mapping: {dict(zip(self.label_encoder.classes_, range(len(self.label_encoder.classes_))))}"
+            )
+
+            return (train_texts, train_labels), (test_texts, test_labels)
+
+    def compute_metrics_single_label(self, y_true, y_pred):
         """
         Compute evaluation metrics (accuracy, precision, recall, F1) for predictions.
 
@@ -132,6 +236,16 @@ class SKNaiveBayesTextClassifier:
         precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="weighted")
         accuracy = accuracy_score(y_true, y_pred)
         return {"accuracy": accuracy, "f1": f1, "precision": precision, "recall": recall}
+
+    def compute_metrics_multi_label(self, y_true, y_pred):
+        """Compute metrics for multi-label classification"""
+        # Calculate metrics
+        precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="weighted", zero_division=0)
+
+        # Subset accuracy (exact match ratio)
+        subset_accuracy = accuracy_score(y_true, y_pred)
+
+        return {"subset_accuracy": subset_accuracy, "f1": f1, "precision": precision, "recall": recall}
 
     def objective(self, trial, train_texts, train_labels, cv_folds=3):
         """
@@ -277,30 +391,7 @@ class SKNaiveBayesTextClassifier:
         optuna_trials: int = 100,
         cv_folds: int = 3,
     ):
-        """
-        Train the Naive Bayes model, optionally using Optuna for hyperparameter optimization.
-
-        Args:
-            project_folder (str): Path to project folder with data.
-            save_path (str): Path to save trained model and artifacts.
-            text_column (str, optional): Name of the text column. Defaults to "text".
-            label_column (str, optional): Name of the label column. Defaults to "label".
-            hyperparams (Optional[Dict[str, Any]], optional): Hyperparameters for training. Defaults to None.
-            optimize_hyperparams (bool, optional): Whether to optimize hyperparameters. Defaults to False.
-            optuna_trials (int, optional): Number of Optuna trials. Defaults to 100.
-            cv_folds (int, optional): Number of cross-validation folds. Defaults to 3.
-
-        Returns:
-            dict: Metadata about the trained model and training process.
-        """
-
-        # Load and prepare data
-        train_df, test_df = self.load_data(project_folder, text_column, label_column)
-        (train_texts, train_labels), (test_texts, test_labels) = self.prepare_datasets(
-            train_df, test_df, text_column, label_column
-        )
-
-        # Default hyperparameters
+        # Define default_hyperparams at the start so it is always in scope
         default_hyperparams = {
             "ngram_range": (1, 1),
             "min_df": 1,
@@ -312,67 +403,88 @@ class SKNaiveBayesTextClassifier:
             "stop_words": "english",
         }
 
-        optimization_results = None
+        # Extract task parameters
+        is_multi_label = default_hyperparams.get("is_multi_label", False)
+        target_label = default_hyperparams.get("target_label")
+        target_labels = default_hyperparams.get("target_labels")
 
-        if optimize_hyperparams:
-            # Optimize hyperparameters
-            optimization_results = self.optimize_hyperparameters(
-                train_texts, train_labels, n_trials=optuna_trials, cv_folds=cv_folds
-            )
+        self.is_multi_label = is_multi_label
 
-            # Update hyperparameters with optimized values
-            optimized_params = {
-                "ngram_range": (self.best_params["ngram_min"], self.best_params["ngram_max"]),
-                "min_df": self.best_params["min_df"],
-                "max_df": self.best_params["max_df"],
-                "alpha": self.best_params["alpha"],
-                "max_features": self.best_params["max_features"],
-                "use_idf": self.best_params["use_idf"],
-                "sublinear_tf": self.best_params["sublinear_tf"],
-                "stop_words": "english",
-            }
-            default_hyperparams.update(optimized_params)
-            logger.info("Using optimized hyperparameters")
+        # Load data
+        train_df, test_df = self.load_data(project_folder, text_column, label_column)
 
-            # Warn about pruning behavior for single CV fold
-            if cv_folds == 1:
-                logger.warning(
-                    "Single CV fold detected: pruning will be disabled as it requires multiple scores to compare"
-                )
+        # Prepare data based on task type
+        if is_multi_label:
+            if target_labels is None:
+                raise ValueError("target_labels must be provided for multi-label classification")
 
-        if hyperparams:
-            default_hyperparams.update(hyperparams)
-            logger.info("Using provided hyperparameters (may override optimized ones)")
+            train_df_processed = self.prepare_multilabel_labels(train_df, target_labels, text_column, label_column)
+            test_df_processed = self.prepare_multilabel_labels(test_df, target_labels, text_column, label_column)
+            num_labels = len(target_labels)
 
-        # Prepare vectorizer and model with final hyperparameters
-        self.vectorizer = TfidfVectorizer(
-            ngram_range=default_hyperparams["ngram_range"],
-            min_df=default_hyperparams["min_df"],
-            max_df=default_hyperparams["max_df"],
-            max_features=default_hyperparams["max_features"],
-            use_idf=default_hyperparams["use_idf"],
-            sublinear_tf=default_hyperparams["sublinear_tf"],
-            stop_words=default_hyperparams["stop_words"],
+        else:
+            if target_label is not None:
+                # Binary classification
+                train_df_processed = self.prepare_binary_labels(train_df, target_label, text_column, label_column)
+                test_df_processed = self.prepare_binary_labels(test_df, target_label, text_column, label_column)
+                num_labels = 2  # Binary: 0 or 1
+            else:
+                # Multi-class classification (use original data)
+                train_df_processed = train_df
+                test_df_processed = test_df
+                num_labels = len(pd.concat([train_df[label_column], test_df[label_column]]).unique())
+
+        logger.info(f"Task type: {'Multi-label' if is_multi_label else 'Binary' if target_label else 'Multi-class'}")
+        logger.info(f"Number of labels: {num_labels}")
+
+        # Prepare datasets
+        (train_texts, train_labels), (test_texts, test_labels) = self.prepare_datasets(
+            train_df_processed, test_df_processed, text_column, label_column, is_multi_label, target_labels
         )
+
+        if self.vectorizer is None:
+            self.vectorizer = TfidfVectorizer(
+                ngram_range=default_hyperparams["ngram_range"],
+                min_df=default_hyperparams["min_df"],
+                max_df=default_hyperparams["max_df"],
+                max_features=default_hyperparams["max_features"],
+                use_idf=default_hyperparams["use_idf"],
+                sublinear_tf=default_hyperparams["sublinear_tf"],
+                stop_words=default_hyperparams["stop_words"],
+            )
+        if self.model is None:
+            self.model = MultinomialNB(alpha=default_hyperparams["alpha"])
         X_train = self.vectorizer.fit_transform(train_texts)
         X_test = self.vectorizer.transform(test_texts)
 
-        self.model = MultinomialNB(alpha=default_hyperparams["alpha"])
+        # Prepare model
+        base_model = MultinomialNB(alpha=default_hyperparams["alpha"])
+        if is_multi_label:
+            self.model = MultiOutputClassifier(base_model)
+        else:
+            self.model = base_model
 
-        # Train
         logger.info("Starting training...")
         self.model.fit(X_train, train_labels)
 
         # Evaluate
         logger.info("Evaluating on test set...")
         y_pred = self.model.predict(X_test)
-        eval_result = self.compute_metrics(test_labels, y_pred)
 
-        # Save model, vectorizer, and label encoder
+        if is_multi_label:
+            eval_result = self.compute_metrics_multi_label(test_labels, y_pred)
+        else:
+            eval_result = self.compute_metrics_single_label(test_labels, y_pred)
+
+        # Save model, vectorizer, and encoders
         os.makedirs(save_path, exist_ok=True)
         joblib.dump(self.model, os.path.join(save_path, "model.pkl"))
         joblib.dump(self.vectorizer, os.path.join(save_path, "vectorizer.pkl"))
-        joblib.dump(self.label_encoder, os.path.join(save_path, "label_encoder.pkl"))
+
+        if is_multi_label:
+            joblib.dump(self.label_binarizer, os.path.join(save_path, "label_binarizer.pkl"))
+        else:
+            joblib.dump(self.label_encoder, os.path.join(save_path, "label_encoder.pkl"))
 
         # Save Optuna study if optimization was performed
         if optimize_hyperparams and self.study is not None:
@@ -380,14 +492,24 @@ class SKNaiveBayesTextClassifier:
 
         # Create metadata
         self.metadata = {
-            "framework": "naive-bayes",
+            "framework": "sklearn",
             "model_type": "sklearn-naive-bayes",
-            "num_labels": len(self.label_encoder.classes_),
-            "label_classes": self.label_encoder.classes_.tolist(),
-            "training_samples": len(train_df),
-            "test_samples": len(test_df),
+            "num_labels": num_labels,
+            "is_multi_label": is_multi_label,
+            "target_label": target_label,
+            "target_labels": target_labels,
+            "label_classes": target_labels
+            if is_multi_label
+            else (self.label_encoder.classes_.tolist() if self.label_encoder else []),
+            "training_samples": len(train_df_processed),
+            "test_samples": len(test_df_processed),
             "hyperparameters": default_hyperparams,
-            "hyperparameter_optimization": {"enabled": optimize_hyperparams, "results": optimization_results},
+            "hyperparameter_optimization": {
+                "enabled": optimize_hyperparams,
+                "results": self.optimize_hyperparameters(train_texts, train_labels, optuna_trials, cv_folds)
+                if optimize_hyperparams
+                else None,
+            },
             "training_time": datetime.now().isoformat(),
             "final_eval_results": eval_result,
             "text_column": text_column,
@@ -418,17 +540,26 @@ class SKNaiveBayesTextClassifier:
         metadata_path = os.path.join(model_path, "metadata.json")
         if not os.path.exists(metadata_path):
             raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
 
         # Initialize classifier
         classifier = cls()
         classifier.metadata = metadata
+        classifier.is_multi_label = metadata.get("is_multi_label", False)
 
-        # Load model, vectorizer, and label encoder
+        # Load model and vectorizer
         classifier.model = joblib.load(os.path.join(model_path, "model.pkl"))
         classifier.vectorizer = joblib.load(os.path.join(model_path, "vectorizer.pkl"))
-        classifier.label_encoder = joblib.load(os.path.join(model_path, "label_encoder.pkl"))
+
+        # Load appropriate encoder
+        if classifier.is_multi_label:
+            binarizer_path = os.path.join(model_path, "label_binarizer.pkl")
+            classifier.label_binarizer = joblib.load(binarizer_path)
+        else:
+            encoder_path = os.path.join(model_path, "label_encoder.pkl")
+            classifier.label_encoder = joblib.load(encoder_path)
 
         # Load Optuna study if it exists
         study_path = os.path.join(model_path, "optuna_study.pkl")
@@ -454,14 +585,50 @@ class SKNaiveBayesTextClassifier:
             raise ValueError("Model not loaded. Use load_for_inference() first.")
 
         X = self.vectorizer.transform(texts)
-        probs = self.model.predict_proba(X)
-        predictions = np.argmax(probs, axis=1)
-        predicted_labels = self.label_encoder.inverse_transform(predictions)
 
-        if return_probabilities:
-            return predicted_labels, probs
+        if self.is_multi_label:
+            # Multi-label prediction
+            predictions = self.model.predict(X)
+            predicted_labels = self.label_binarizer.inverse_transform(predictions)
+
+            if return_probabilities:
+                # For multi-label, we need to get probabilities from each binary classifier
+                try:
+                    # This will work if the base estimator supports predict_proba
+                    probs = []
+                    for i, estimator in enumerate(self.model.estimators_):
+                        if hasattr(estimator, "predict_proba"):
+                            # Get probability of positive class for this label
+                            prob_positive = estimator.predict_proba(X)[:, 1]
+                            probs.append(prob_positive)
+                        else:
+                            # Fallback: use decision function or predictions
+                            if hasattr(estimator, "decision_function"):
+                                scores = estimator.decision_function(X)
+                                # Convert to probabilities using sigmoid-like transformation
+                                prob_positive = 1 / (1 + np.exp(-scores))
+                            else:
+                                # Last resort: use predictions as probabilities
+                                prob_positive = estimator.predict(X).astype(float)
+                            probs.append(prob_positive)
+
+                    probs = np.column_stack(probs)
+                    return predicted_labels, probs
+                except Exception as e:
+                    logger.warning(f"Could not compute probabilities for multi-label: {e}")
+                    return predicted_labels, None
+            else:
+                return predicted_labels
         else:
-            return predicted_labels
+            # Single-label prediction
+            probs = self.model.predict_proba(X)
+            predictions = np.argmax(probs, axis=1)
+            predicted_labels = self.label_encoder.inverse_transform(predictions)
+
+            if return_probabilities:
+                return predicted_labels, probs
+            else:
+                return predicted_labels
 
     def get_model_info(self):
         """
@@ -497,29 +664,29 @@ class SKNaiveBayesTextClassifier:
 
 
 # Example usage
-if __name__ == "__main__":
-    # Train with hyperparameter optimization
-    classifier = SKNaiveBayesTextClassifier()
-    metadata = classifier.train(
-        project_folder="data",
-        save_path="models/sk-naive-bayes-optimized",
-        text_column="text",
-        label_column="label",
-        optimize_hyperparams=True,
-        optuna_trials=50,
-        cv_folds=3,
-    )
-    print("Metadata: ", metadata)
-
-    # Load and make predictions
-    classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path="models/sk-naive-bayes-optimized")
-    predictions = classifier.predict(
-        texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
-    )
-    print("Predictions:", predictions)
-
-    # Get optimization history
-    opt_history = classifier.get_optimization_history()
-    if opt_history:
-        print(f"Best optimization score: {opt_history['best_value']:.4f}")
-        print(f"Best parameters: {opt_history['best_params']}")
+# if __name__ == "__main__":
+#     # Train with hyperparameter optimization
+#     classifier = SKNaiveBayesTextClassifier()
+#     metadata = classifier.train(
+#         project_folder="data",
+#         save_path="models/sk-naive-bayes-optimized",
+#         text_column="text",
+#         label_column="label",
+#         optimize_hyperparams=True,
+#         optuna_trials=50,
+#         cv_folds=3,
+#     )
+#     print("Metadata: ", metadata)
+#
+#     # Load and make predictions
+#     classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path="models/sk-naive-bayes-optimized")
+#     predictions = classifier.predict(
+#         texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
+#     )
+#     print("Predictions:", predictions)
+#
+#     # Get optimization history
+#     opt_history = classifier.get_optimization_history()
+#     if opt_history:
+#         print(f"Best optimization score: {opt_history['best_value']:.4f}")
+#         print(f"Best parameters: {opt_history['best_params']}")
