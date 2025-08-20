@@ -381,18 +381,12 @@ def test_scenario5_mixed(optuna_flag, optuna_trials, models_config):
         validate_output_artifacts_and_evaluation(output_dir, PROJECT_ID)
 
 
-config_xml = get_labelstudio_config(PROJECT_ID)
-all_targets = get_all_targets(config_xml)
-representative_targets = get_representative_targets(config_xml)
-
-
 @pytest.mark.parametrize(
     "optuna_flag, models_config",
     [("False", "configs/quick_test.json"), ("True", "configs/quick_test_optuna.json")],
     ids=["no_optuna", "with_optuna"],
 )
-@pytest.mark.parametrize("target_type,target_label", representative_targets, ids=lambda x: x[0])
-def test_scenario6_targeted(target_type, target_label, optuna_flag, models_config):
+def test_scenario6_targeted(optuna_flag, models_config):
     """
     Scenario 6: TARGETED CLASSIFICATION (Target Specified)
     Tests one representative of each type of target label:
@@ -401,29 +395,32 @@ def test_scenario6_targeted(target_type, target_label, optuna_flag, models_confi
     - single_label_value: a label from a single-label category
     - multi_label_value: a label from a multi-label category
     """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        output_dir = os.path.join(tmpdir, f"targeted_{target_type}_{target_label}")
-        cmd = [
-            "python",
-            "-m",
-            "mc_classifier_pipeline.model_orchestrator",
-            "--project-id",
-            str(PROJECT_ID),
-            "--output-dir",
-            output_dir,
-            "--models-config",
-            models_config,
-            "--text-column",
-            TEXT_COLUMN,
-            "--label-column",
-            LABEL_COLUMN,
-            "--target-label",
-            target_label,
-            "--train-ratio",
-            "0.7",
-        ]
-        result = subprocess.run(cmd, capture_output=True)
-        assert result.returncode == 0, (
-            f"Scenario 6 failed for target {target_type}={target_label}\nSTDOUT: {result.stdout.decode()}\nSTDERR: {result.stderr.decode()}"
-        )
-        validate_output_artifacts_and_evaluation(output_dir, PROJECT_ID)
+    config_xml = get_labelstudio_config(PROJECT_ID)
+    representative_targets = get_representative_targets(config_xml)
+    for target_type, target_label in representative_targets:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = os.path.join(tmpdir, f"targeted_{target_type}_{target_label}")
+            cmd = [
+                "python",
+                "-m",
+                "mc_classifier_pipeline.model_orchestrator",
+                "--project-id",
+                str(PROJECT_ID),
+                "--output-dir",
+                output_dir,
+                "--models-config",
+                models_config,
+                "--text-column",
+                TEXT_COLUMN,
+                "--label-column",
+                LABEL_COLUMN,
+                "--target-label",
+                target_label,
+                "--train-ratio",
+                "0.7",
+            ]
+            result = subprocess.run(cmd, capture_output=True)
+            assert result.returncode == 0, (
+                f"Scenario 6 failed for target {target_type}={target_label}\nSTDOUT: {result.stdout.decode()}\nSTDERR: {result.stderr.decode()}"
+            )
+            validate_output_artifacts_and_evaluation(output_dir, PROJECT_ID)
