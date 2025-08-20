@@ -1,23 +1,18 @@
 services:
-  mc_pipeline:
+  # Unified ML pipeline container
+  mc-classifier:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mc_pipeline:latest            
-    container_name: mc_pipeline
-
+    image: mc_classifier:latest
+    container_name: mc_classifier
     env_file:
-      - .env            
-
+      - .env
     volumes:
-      - ./src:/app/src
-      - ./data:/app/data                 
-
-    entrypoint: ["python", "-m", "mc_classifier_pipeline.run_pipeline"]
-    command: ["--help"]        
-
-    # ports:
-    #   - "8000:8000"          
-
-    tty: true                
+      - ./data:/app/data
+      - ./experiments:/app/experiments
+      - ./configs:/app/configs:ro
+      - ./src:/app/src:ro
+    command: ["mc_classifier", "doc_retriever", "--help"]
+    tty: true
     working_dir: /app

@@ -19,11 +19,13 @@ You should also add project tags for each release in Github, see [Managing relea
 - Add `sk_naive_bayes_recipe.py` for scikit-learn based text classification
 - Add `inference.py` for generating predictions for a list of story URLs using a trained model
 - Add `query_keyword_expander` script to generate a search query that can cast a wider net and retrieve more relevant stories from MC (optional)
+- Add `model_orchestrator.py` for connecting preprocessing, training, and evaluation
 
 ### Changed
 - Modify `doc_retriever` script to store in Label Studio formatted Json.
 - Refactor parsing arguments in both `doc_retriever` and `label_studio_uploader`
 - Modify `doc_retriever` script to accept optional collection ID
+- Modify `evaluation` to accept optional args in main
 
 
 

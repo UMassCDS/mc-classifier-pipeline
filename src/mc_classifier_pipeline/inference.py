@@ -13,9 +13,9 @@ import pandas as pd
 from dotenv import load_dotenv
 from tqdm import tqdm
 
-from mc_classifier_pipeline import utils
+from mc_classifier_pipeline.utils import configure_logging
 
-utils.configure_logging()
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
