@@ -19,11 +19,13 @@
 - [Communication Tools and Code](#communication-tools-and-code)
 
 # Overview
+Designed for Media Cloud engineers and communication researchers, this toolkit simplifies the end-to-end process of sourcing, labeling, and modeling media content. It eliminates the need for repetitive, manual setup and enables more targeted analysis through iterative query refinement. By improving the initial keyword matching, the pipeline supports more nuanced exploration of patterns in media coverage that are difficult to capture through traditional search alone.
+
 Sets up 2 pipelines that:
 1. takes a user query, retrieves relevant full-text media articles from [Media Cloud](https://www.mediacloud.org), imports it into a user defined Label Studio project
 2. produces both an annotated dataset and a trained classifier model
-It also uses the trained model to make predictions on a list of URLs. 
-Designed for Media Cloud engineers and communication researchers, the pipeline simplifies the end-to-end process of sourcing, labeling, and modeling media content. It eliminates the need for repetitive, manual setup and enables more targeted analysis through iterative query refinement. By improving the initial keyword matching, the pipeline supports more nuanced exploration of patterns in media coverage that are difficult to capture through traditional search alone.
+
+It also uses the trained model to make predictions on a list of URLs and includes tools for analyzing inter-annotator agreement in a Label Studio annotation project.
 
 ## System Diagrams
 ### Simplified Diagram
@@ -65,8 +67,8 @@ So what does each file in this repository do?
 ├── train.csv                                                       # Training data
 ├── test.csv                                                        # Test data
 ├── metadata.json                                                   # Metadata from preprocessing
-└── models/                                               
-    ├── training_summary.json                                       # Training metadata 
+└── models/
+    ├── training_summary.json                                       # Training metadata
     ├── {YYYYMMDD_HHMMSS_000}/                                      # Timestamped name
     │   ├── metadata.json                                           # Model-specific metadata
     │   ├── label_encoder.pkl                                       # Pickled label encoder file
@@ -100,7 +102,7 @@ So what does each file in this repository do?
 # Getting Started
 ## Installing Dependencies and Packages
 Use these steps for setting up a development environment to install and work with code in this template:
-1) Set up a Python 3 virtual environment using [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#) or [Virtualenv](https://virtualenv.pypa.io/en/latest/index.html). Read [Python Virtual Environments: A Primer](https://realpython.com/python-virtual-environments-a-primer/#the-virtualenv-project) for details on how to get started with virtual environments and why you need them. For a _really detailed_ explanation, see [An unbiased evaluation of environment management and packaging tools](https://alpopkes.com/posts/python/packaging_tools/). 
+1) Set up a Python 3 virtual environment using [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#) or [Virtualenv](https://virtualenv.pypa.io/en/latest/index.html). Read [Python Virtual Environments: A Primer](https://realpython.com/python-virtual-environments-a-primer/#the-virtualenv-project) for details on how to get started with virtual environments and why you need them. For a _really detailed_ explanation, see [An unbiased evaluation of environment management and packaging tools](https://alpopkes.com/posts/python/packaging_tools/).
 2) Activate your virtual environment.
 
 3) Install the package.
