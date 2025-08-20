@@ -1,24 +1,25 @@
+import ast
 import gc
-import os
 import json
 import logging
-from datetime import datetime
-from typing import Dict, Optional, Tuple, Any
+import os
 import tempfile
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import torch
-from torch.utils.data import Dataset
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSequenceClassification,
-    TrainingArguments,
-    Trainer,
-    DataCollatorWithPadding,
-)
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.preprocessing import LabelEncoder, MultiLabelBinarizer
+from torch.utils.data import Dataset
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    DataCollatorWithPadding,
+    Trainer,
+    TrainingArguments,
+)
 import joblib
 
 # Disable MLflow tracking completely
@@ -331,6 +332,7 @@ class BERTTextClassifier:
         subset_accuracy = accuracy_score(labels, predictions)
 
         return {"subset_accuracy": subset_accuracy, "f1": f1, "precision": precision, "recall": recall}
+
     def _objective(self, trial):
         """
         Optuna objective function for hyperparameter optimization.

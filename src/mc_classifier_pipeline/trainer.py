@@ -237,6 +237,7 @@ def train_model_from_config(
 ) -> Path:
     """
     Train a single model directly from its configuration using preprocessing metadata.
+    If BertFineTune and 'optimize_hyperparams' is set in model_params, run Optuna optimization first.
     """
     model_type = model_config["model_type"]
     model_params = model_config.get("model_params", {})
@@ -261,6 +262,20 @@ def train_model_from_config(
         updated_params = merge_task_parameters_with_hyperparams(
             model_params, is_multi_label, target_label, target_labels
         )
+
+        # NEW: If optimize_hyperparams is set, run Optuna optimization
+        if updated_params.get("optimize_hyperparams", False):
+            n_trials = updated_params.get("optuna_trials", 1)
+            logger.info(f"Running Optuna hyperparameter optimization for BERT with {n_trials} trials...")
+            clf.optimize_hyperparameters(
+                project_folder=str(experiment_dir),
+                text_column=text_column,
+                label_column=label_column,
+                n_trials=n_trials,
+            )
+            # Optionally, update updated_params with best found params here if desired
+            # (Not implemented: would require mapping study.best_params to model_params)
+            logger.info("Optuna optimization for BERT completed.")
 
     elif model_type == "SklearnMultinomialNaiveBayes":
         clf = SKNaiveBayesTextClassifier()

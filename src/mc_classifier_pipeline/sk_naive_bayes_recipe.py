@@ -187,8 +187,6 @@ class SKNaiveBayesTextClassifier:
         """
         # Encode labels
         all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
-        self.label_encoder.fit(all_labels)
-
         if is_multi_label:
             # Multi-label classification
             if target_labels is None:
@@ -208,8 +206,7 @@ class SKNaiveBayesTextClassifier:
 
         else:
             # Single-label or binary classification
-            self.label_encoder = LabelEncoder()
-            all_labels = pd.concat([train_df[label_column], test_df[label_column]]).unique()
+            self.label_encoder = LabelEncoder()  # Always assign a new LabelEncoder
             self.label_encoder.fit(all_labels)
 
             train_labels = self.label_encoder.transform(train_df[label_column])
@@ -249,6 +246,7 @@ class SKNaiveBayesTextClassifier:
         subset_accuracy = accuracy_score(y_true, y_pred)
 
         return {"subset_accuracy": subset_accuracy, "f1": f1, "precision": precision, "recall": recall}
+
     def objective(self, trial, train_texts, train_labels, cv_folds=3):
         """
         Optuna objective function for hyperparameter optimization.
@@ -393,22 +391,17 @@ class SKNaiveBayesTextClassifier:
         optuna_trials: int = 100,
         cv_folds: int = 3,
     ):
-        """
-        Train the Naive Bayes model, optionally using Optuna for hyperparameter optimization.
-
-        Args:
-            project_folder (str): Path to project folder with data.
-            save_path (str): Path to save trained model and artifacts.
-            text_column (str, optional): Name of the text column. Defaults to "text".
-            label_column (str, optional): Name of the label column. Defaults to "label".
-            hyperparams (Optional[Dict[str, Any]], optional): Hyperparameters for training. Defaults to None.
-            optimize_hyperparams (bool, optional): Whether to optimize hyperparameters. Defaults to False.
-            optuna_trials (int, optional): Number of Optuna trials. Defaults to 100.
-            cv_folds (int, optional): Number of cross-validation folds. Defaults to 3.
-
-        Returns:
-            dict: Metadata about the trained model and training process.
-        """
+        # Define default_hyperparams at the start so it is always in scope
+        default_hyperparams = {
+            "ngram_range": (1, 1),
+            "min_df": 1,
+            "max_df": 1.0,
+            "alpha": 1.0,
+            "max_features": None,
+            "use_idf": True,
+            "sublinear_tf": False,
+            "stop_words": "english",
+        }
 
         # Extract task parameters
         is_multi_label = default_hyperparams.get("is_multi_label", False)
@@ -449,73 +442,28 @@ class SKNaiveBayesTextClassifier:
             train_df_processed, test_df_processed, text_column, label_column, is_multi_label, target_labels
         )
 
-        # Default hyperparameters
-        default_hyperparams = {
-            "ngram_range": (1, 1),
-            "min_df": 1,
-            "max_df": 1.0,
-            "alpha": 1.0,
-            "max_features": None,
-            "use_idf": True,
-            "sublinear_tf": False,
-            "stop_words": "english",
-        }
-
-        optimization_results = None
-
-        if optimize_hyperparams:
-            # Optimize hyperparameters
-            optimization_results = self.optimize_hyperparameters(
-                train_texts, train_labels, n_trials=optuna_trials, cv_folds=cv_folds
+        if self.vectorizer is None:
+            self.vectorizer = TfidfVectorizer(
+                ngram_range=default_hyperparams["ngram_range"],
+                min_df=default_hyperparams["min_df"],
+                max_df=default_hyperparams["max_df"],
+                max_features=default_hyperparams["max_features"],
+                use_idf=default_hyperparams["use_idf"],
+                sublinear_tf=default_hyperparams["sublinear_tf"],
+                stop_words=default_hyperparams["stop_words"],
             )
-
-            # Update hyperparameters with optimized values
-            optimized_params = {
-                "ngram_range": (self.best_params["ngram_min"], self.best_params["ngram_max"]),
-                "min_df": self.best_params["min_df"],
-                "max_df": self.best_params["max_df"],
-                "alpha": self.best_params["alpha"],
-                "max_features": self.best_params["max_features"],
-                "use_idf": self.best_params["use_idf"],
-                "sublinear_tf": self.best_params["sublinear_tf"],
-                "stop_words": "english",
-            }
-            default_hyperparams.update(optimized_params)
-            logger.info("Using optimized hyperparameters")
-
-            # Warn about pruning behavior for single CV fold
-            if cv_folds == 1:
-                logger.warning(
-                    "Single CV fold detected: pruning will be disabled as it requires multiple scores to compare"
-                )
-
-        if hyperparams:
-            default_hyperparams.update(hyperparams)
-            logger.info("Using provided hyperparameters (may override optimized ones)")
-
-        # Prepare vectorizer and model with final hyperparameters
-        self.vectorizer = TfidfVectorizer(
-            ngram_range=default_hyperparams["ngram_range"],
-            min_df=default_hyperparams["min_df"],
-            max_df=default_hyperparams["max_df"],
-            max_features=default_hyperparams["max_features"],
-            use_idf=default_hyperparams["use_idf"],
-            sublinear_tf=default_hyperparams["sublinear_tf"],
-            stop_words=default_hyperparams["stop_words"],
-        )
+        if self.model is None:
+            self.model = MultinomialNB(alpha=default_hyperparams["alpha"])
         X_train = self.vectorizer.fit_transform(train_texts)
         X_test = self.vectorizer.transform(test_texts)
 
         # Prepare model
         base_model = MultinomialNB(alpha=default_hyperparams["alpha"])
-
         if is_multi_label:
-            # Use MultiOutputClassifier for multi-label classification
             self.model = MultiOutputClassifier(base_model)
         else:
             self.model = base_model
 
-        # Train
         logger.info("Starting training...")
         self.model.fit(X_train, train_labels)
 
@@ -556,7 +504,12 @@ class SKNaiveBayesTextClassifier:
             "training_samples": len(train_df_processed),
             "test_samples": len(test_df_processed),
             "hyperparameters": default_hyperparams,
-            "hyperparameter_optimization": {"enabled": optimize_hyperparams, "results": optimization_results},
+            "hyperparameter_optimization": {
+                "enabled": optimize_hyperparams,
+                "results": self.optimize_hyperparameters(train_texts, train_labels, optuna_trials, cv_folds)
+                if optimize_hyperparams
+                else None,
+            },
             "training_time": datetime.now().isoformat(),
             "final_eval_results": eval_result,
             "text_column": text_column,
@@ -711,29 +664,29 @@ class SKNaiveBayesTextClassifier:
 
 
 # Example usage
-if __name__ == "__main__":
-    # Train with hyperparameter optimization
-    classifier = SKNaiveBayesTextClassifier()
-    metadata = classifier.train(
-        project_folder="data",
-        save_path="models/sk-naive-bayes-optimized",
-        text_column="text",
-        label_column="label",
-        optimize_hyperparams=True,
-        optuna_trials=50,
-        cv_folds=3,
-    )
-    print("Metadata: ", metadata)
-
-    # Load and make predictions
-    classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path="models/sk-naive-bayes-optimized")
-    predictions = classifier.predict(
-        texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
-    )
-    print("Predictions:", predictions)
-
-    # Get optimization history
-    opt_history = classifier.get_optimization_history()
-    if opt_history:
-        print(f"Best optimization score: {opt_history['best_value']:.4f}")
-        print(f"Best parameters: {opt_history['best_params']}")
+# if __name__ == "__main__":
+#     # Train with hyperparameter optimization
+#     classifier = SKNaiveBayesTextClassifier()
+#     metadata = classifier.train(
+#         project_folder="data",
+#         save_path="models/sk-naive-bayes-optimized",
+#         text_column="text",
+#         label_column="label",
+#         optimize_hyperparams=True,
+#         optuna_trials=50,
+#         cv_folds=3,
+#     )
+#     print("Metadata: ", metadata)
+#
+#     # Load and make predictions
+#     classifier = SKNaiveBayesTextClassifier.load_for_inference(model_path="models/sk-naive-bayes-optimized")
+#     predictions = classifier.predict(
+#         texts=["That superman movie was so bad. I hated it. I would never watch it again."], return_probabilities=True
+#     )
+#     print("Predictions:", predictions)
+#
+#     # Get optimization history
+#     opt_history = classifier.get_optimization_history()
+#     if opt_history:
+#         print(f"Best optimization score: {opt_history['best_value']:.4f}")
+#         print(f"Best parameters: {opt_history['best_params']}")

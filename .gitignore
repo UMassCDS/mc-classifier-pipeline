@@ -128,8 +128,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-
+#Data from doc_retriever + data for notebook
+data/
 # Data Generated for training
 experiments
 # Ignore model files
 models/    
+
+.DS_Store

@@ -2,7 +2,7 @@
 This orchestrator supports 6 classification scenarios based on Label Studio configuration
 and target label specification. The pipeline automatically determines the appropriate
 training strategy and model types based on the annotation config structure.
-    
+
 SUPPORTED SCENARIOS:
 
 1. SINGLE-LABEL CATEGORY (No Target Specified)
@@ -10,7 +10,7 @@ SUPPORTED SCENARIOS:
         <Choices name="sentiment" choice="single">
         <Choice value="Positive"/><Choice value="Negative"/><Choice value="Neutral"/>
         </Choices>
-    
+
     Preprocessing: Extracts mixed single labels ["Positive", "Negative", "Neutral"]
     Training: 3 binary classifiers (Positive vs not-Positive, Negative vs not-Negative, Neutral vs not-Neutral)
     Use Case: Topic classification, sentiment analysis where only one label applies
@@ -19,7 +19,7 @@ SUPPORTED SCENARIOS:
     Label Studio Config:
         <Choices name="sentiment" choice="single">...</Choices>
         <Choices name="topic" choice="single">...</Choices>
-    
+
     Preprocessing: Extracts all labels from both categories in single-label format
     Training: N binary classifiers (one for each unique label across all categories)
     Use Case: Multiple classification tasks with mutually exclusive choices
@@ -29,7 +29,7 @@ SUPPORTED SCENARIOS:
         <Choices name="tags" choice="multiple">
         <Choice value="Opinion"/><Choice value="Analysis"/><Choice value="Breaking News"/>
         </Choices>
-    
+
     Preprocessing: Extracts in multi-label format [["Opinion", "Analysis"], ["Breaking News"]]
     Training: 1 multi-label classifier handling all tag labels simultaneously
     Use Case: Content tagging where multiple labels can apply to one article
@@ -38,7 +38,7 @@ SUPPORTED SCENARIOS:
     Label Studio Config:
         <Choices name="tags" choice="multiple">...</Choices>
         <Choices name="emotions" choice="multiple">...</Choices>
-    
+
     Preprocessing: Extracts labels by category, preserving structure
     Training: 2 separate multi-label classifiers (one for tags, one for emotions)
     Use Case: Multiple independent multi-label tasks (e.g., content tags + emotional tone)
@@ -47,16 +47,16 @@ SUPPORTED SCENARIOS:
     Label Studio Config:
         <Choices name="sentiment" choice="single">...</Choices>
         <Choices name="tags" choice="multiple">...</Choices>
-    
+
     Preprocessing: Extracts everything in categorized format
     Training: Binary classifiers for single-label categories + multi-label classifiers for multi-label categories
     Use Case: Complex annotation projects with both exclusive and non-exclusive labeling
 
 6. TARGETED CLASSIFICATION (Target Specified)
     Command: --target-label sentiment (category name)
-            --target-label tags (category name) 
+            --target-label tags (category name)
             --target-label Positive (specific label)
-    
+
     Preprocessing: Extracts only specified target labels/category
     Training: Depends on target type:
         - Single-label category → Binary classifiers for each label in category
@@ -73,7 +73,7 @@ Model Types Generated:
 
 Data Formats:
 - Single-label: "Positive", "Sports" (string labels)
-- Multi-label: ["Opinion", "Analysis"] (list of labels)  
+- Multi-label: ["Opinion", "Analysis"] (list of labels)
 - Categorized: {"sentiment": ["Positive"], "tags": ["Opinion", "Analysis"]} (structured labels)
 
 Output Structure:
@@ -81,7 +81,6 @@ Output Structure:
 - Models are named: {model_type}_{job_name} (e.g., bert_binary_Positive, bert_multilabel_tags)
 - Training summary includes job types, target labels, and performance metrics
 """
-
 
 import argparse
 import logging
