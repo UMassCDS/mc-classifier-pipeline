@@ -370,12 +370,21 @@ python -m src.mc_classifier_pipeline.inference \
 ## Additional Tools
 
 ### Query Keyword Expansion
-To expand your search query with related terms:
+To expand your initial search query with related terms using Pointwise Mutual Information (PMI):
 ```bash
-python -m mc_classifier_pipeline.query_keyword_expander \
-    --query "your initial query" \
-    --num-keywords 10
+python -m mc_classifier_pipeline.query_keyword_expander 
+--seed-word healthcare
+--top-n 30
+--csv-path data/search_results.csv
 ```
+
+### Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `--seed-word` | Seed word for PMI |
+| `--top-n` | Number of additional keywords for the new query |
+| `--csv-path` | Path of csv file containing results of the initial query|
 
 ### Hyperparameter Optimization with Optuna
 
