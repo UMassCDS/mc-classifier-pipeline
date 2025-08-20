@@ -76,7 +76,7 @@ dev = [
 [project.scripts]
 # Data collection and upload pipeline
 retrieve-mc-docs = "mc_classifier_pipeline.doc_retriever:main"
-mc-pipeline = "mc_classifier_pipeline.run_pipeline:main"
+mc-pipeline = "mc_classifier_pipeline.data_ingest:main"
 # ML pipeline stages
 mc-preprocess = "mc_classifier_pipeline.preprocessing:run_preprocessing_pipeline"
 mc-train = "mc_classifier_pipeline.trainer:main"

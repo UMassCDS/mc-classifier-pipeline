@@ -64,7 +64,7 @@ Label Studio will be available at http://localhost:8080.
 You can use the following command to populate the project with data:
 
 ```sh
-python -m mc_classifier_pipeline.run_pipeline --query "climate" --start 2025-06-01 --end 2025-06-30 --project_id 1
+python -m mc_classifier_pipeline.data_ingest --query "climate" --start 2025-06-01 --end 2025-06-30 --project_id 1
 ```
 
 - Make sure the `project_id` matches the ID of your Label Studio project.

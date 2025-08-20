@@ -3,7 +3,7 @@ End-to-end pipeline:
   1. Query documents -> JSON tasks
   2. Push those tasks to a chosen Label Studio project
 Usage example:
-  python -m mc_classifier_pipeline.run_pipeline.py --query "election" --start 2025-06-01 --end 2025-06-30 --project_id 2
+  python -m mc_classifier_pipeline.data_ingest --query "election" --start 2025-06-01 --end 2025-06-30 --project_id 2
 """
 
 from __future__ import annotations

@@ -45,7 +45,7 @@ So what does each file in this repository do?
 │       ├── label_studio_uploader.py      # Uploads data to Label Studio
         ├── model_orchestrator.py         # Connects preprocessing, training, and evaluation
         ├── preprocessing.py              # Preprocesses data uploaded to labelstudio
-│       ├── run_pipeline.py               # Connects document retrieval and labelstudio uploader
+│       ├── data_ingest.py               # Connects document retrieval and labelstudio uploader
         ├── sk_naive_bayes_recipe.py      # Naive Bayes Model Recipe
         ├── trainer.py                    # Trains models from config
 │       └── utils.py                      # Utility functions (logging, helpers, etc.)
@@ -236,12 +236,12 @@ The pipeline consists of several key scripts that can be run independently or as
 
 # Full Workflow
 
-## 1. Document Retrieval and Label Studio Upload
+## 1. Data Ingest: Document Retrieval and Label Studio Upload
 
 To retrieve documents from Media Cloud and upload them to Label Studio
 
 ```bash
-python -m mc_classifier_pipeline.run_pipeline \
+python -m mc_classifier_pipeline.data_ingest \
  --query "your search query" \
  --project-id YOUR_PROJECT_ID \
  --start-date YYYY-MM-DD \
@@ -251,7 +251,7 @@ python -m mc_classifier_pipeline.run_pipeline \
 ### Example
 
 ```bash
-python -m mc_classifier_pipeline.run_pipeline \
+python -m mc_classifier_pipeline.data_ingest \
  --query "climate change AND (protest OR activist)" \
  --project-id 123 \
  --start-date 2023-01-01 \

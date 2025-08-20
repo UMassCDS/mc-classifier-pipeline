@@ -9,7 +9,7 @@ __all__ = [
     "evaluation",
     "label_studio_uploader",
     "preprocessing",
-    "run_pipeline",
+    "data_ingest",
     "sk_naive_bayes_recipe",
     "trainer",
     "utils",
