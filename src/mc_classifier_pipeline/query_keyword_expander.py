@@ -20,6 +20,7 @@ class PMIKeywordExpander:
     A class to expand keywords using Pointwise Mutual Information (PMI) analysis.
     Analyzes text corpus to find words most associated with a seed keyword.
     """
+
     TOP_KEYWORDS = 20
 
     def __init__(self, seed_word, csv_path):
@@ -128,7 +129,7 @@ def build_argument_parser(add_help: bool = True) -> argparse.ArgumentParser:
         python -m mc_classifier_pipeline.query_keyword_expander --seed-word healthcare --csv-path data/search_results.csv
         # Get top 30 keywords for 'climate' from a different CSV
         python -m mc_classifier_pipeline.query_keyword_expander --seed-word climate --csv-path data/other_results.csv --top-n 30
-        """
+        """,
     )
 
     parser.add_argument(
