@@ -20,14 +20,13 @@ class PMIKeywordExpander:
     A class to expand keywords using Pointwise Mutual Information (PMI) analysis.
     Analyzes text corpus to find words most associated with a seed keyword.
     """
-
-    CSV_PATH = "data/search_results.csv"  # stores results from running doc_retriever.py
     TOP_KEYWORDS = 20
 
-    def __init__(self, seed_word):
+    def __init__(self, seed_word, csv_path):
         """Initialize the PMI keyword expander."""
         self.article_df = None
         self.seed_word = seed_word
+        self.csv_path = csv_path
         self.doc_frequencies = Counter()  # documents containing each word
         self.cooccurrence_counts = Counter()  # documents containing both word and healthcare
         self.total_documents = 0
@@ -37,7 +36,7 @@ class PMIKeywordExpander:
     def load(self):
         """Load text data from CSV file."""
         try:
-            self.article_df = pd.read_csv(self.CSV_PATH)
+            self.article_df = pd.read_csv(self.csv_path)
             return True
         except Exception as e:
             print(f"Error loading CSV: {e}")
@@ -118,17 +117,18 @@ class PMIKeywordExpander:
 def build_argument_parser(add_help: bool = True) -> argparse.ArgumentParser:
     """
     Build the argument parser for the keyword expander script.
-
-    Args:
-        add_help: Whether to add the default help argument
-
-    Returns:
-        Argument parser instance
     """
     parser = argparse.ArgumentParser(
         description="Expand keywords using PMI analysis on a text corpus.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         add_help=add_help,
+        epilog="""
+        Examples:
+        # Expand keywords for 'healthcare' using a specific CSV file
+        python -m mc_classifier_pipeline.query_keyword_expander --seed-word healthcare --csv-path data/search_results.csv
+        # Get top 30 keywords for 'climate' from a different CSV
+        python -m mc_classifier_pipeline.query_keyword_expander --seed-word climate --csv-path data/other_results.csv --top-n 30
+        """
     )
 
     parser.add_argument(
@@ -136,6 +136,12 @@ def build_argument_parser(add_help: bool = True) -> argparse.ArgumentParser:
         type=str,
         required=True,
         help="The seed keyword to expand from (e.g., 'healthcare').",
+    )
+    parser.add_argument(
+        "--csv-path",
+        type=str,
+        required=True,
+        help="Path to the CSV file containing the text corpus.",
     )
     parser.add_argument(
         "--top-n",
@@ -154,7 +160,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Main function to run the keyword expander."""
     args = parse_args()
-    expander = PMIKeywordExpander(seed_word=args.seed_word)
+    expander = PMIKeywordExpander(seed_word=args.seed_word, csv_path=args.csv_path)
     expander.TOP_KEYWORDS = args.top_n
 
     if not expander.load():
