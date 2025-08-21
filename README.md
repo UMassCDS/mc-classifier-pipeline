@@ -8,14 +8,14 @@
 - [Getting Started](#getting-started)
   - [Installing Dependencies and Packages](#installing-dependencies-and-packages)
   - [Environment Variables](#environment-variables)
+- [Running with Docker](#running-with-docker)
 - [Running the Scripts](#running-the-scripts)
   - [Full Workflow](#full-workflow)
-    - [Document Retreival and Label Studio Upload](#1-document-retrieval-and-label-studio-upload)
+    - [Document Retreival and Label Studio Upload](#1-data-ingest-document-retrieval-and-label-studio-upload)
     - [Model Orchestrator](#2-model-orchestrator)
     - [Inference](#3-inference)
   - [Individual Scripts](#individual-scripts)
   - [Additional Tools](#additional-tools)
-  - [Running with Docker](#running-with-docker)
 - [Communication Tools and Code](#communication-tools-and-code)
 
 # Overview
@@ -108,95 +108,6 @@ Use these steps for setting up a development environment to install and work wit
   <!-- - If you will be changing the code and running tests, you can install it by running `pip install -e .[test,dev]`. The `-e/--editable` flag means local changes to the project code will always be available with the package is imported. You wouldn't use this in production, but it's useful for development.
   - Note for zsh users: use `pip install -e .'[test,dev]'` -->
 
-## Environment Variables
-
-To use the document retriever script, you must set the `MC_API_KEY` environment variable. To use the label studio uploader script, you must set `LABEL_STUDIO_HOST` and `LABEL_STUDIO_TOKEN` environment variables. Both scripts uses the `python-dotenv` library, so you can create a `.env` file in the project's root directory:
-
-```
-MC_API_KEY="YOUR_MEDIA_CLOUD_API_KEY_HERE"
-LABEL_STUDIO_HOST="YOUR_LABEL_STUDIO_HOST_HERE"
-LABEL_STUDIO_TOKEN="YOUR_LABEL_STUDIO_TOKEN_HERE"
-```
-
-The script will automatically load this variable.
-
-## Running with Docker
-
-For containerized deployment, this project includes Docker configuration that packages all dependencies and provides a consistent runtime environment across different systems.
-
-### Prerequisites
-
-Ensure Docker and Docker Compose are installed on your system:
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (recommended for Windows/macOS)
-- [Docker Engine](https://docs.docker.com/engine/install/) (for Linux)
-
-Make sure you have configured the required environment variables as described in the [Environment Variables](#environment-variables) section above.
-
-### Building the Container
-
-Build the Docker image from the project root:
-```bash
-docker compose build
-```
-
-### Running Pipeline Components
-
-The Docker container provides a unified interface for all pipeline components. You can run any module by specifying the full Python module path:
-
-#### Document Retrieval and Data Collection
-```bash
-# Get help for document retriever
-docker compose run --rm mc-classifier retrieve-mc-docs --help
-
-# Run the complete data collection pipeline
-docker compose run --rm mc-classifier mc-pipeline --config configs/quick_test.json
-```
-
-#### Model Training and Evaluation
-```bash
-# Preprocess data
-docker compose run --rm mc-classifier mc-preprocess --help
-
-# Train models
-docker compose run --rm mc-classifier mc-train --config configs/quick_test.json
-
-# Evaluate models
-docker compose run --rm mc-classifier mc-evaluate --help
-
-# Run the complete ML orchestration pipeline
-docker compose run --rm mc-classifier mc-model-orchestrator --config configs/quick_test.json
-```
-
-#### Model Inference
-```bash
-# Run inference on new data
-docker compose run --rm mc-classifier mc-inference --model experiments/your_model --input data/new_articles.json
-```
-
-### Development with Docker
-
-For development, mount local source code and data directories:
-```bash
-# The docker-compose.yml includes volume mounts for:
-# - ./data:/app/data (data files)
-# - ./experiments:/app/experiments (model outputs)
-# - ./configs:/app/configs:ro (configuration files, read-only)
-# - ./src:/app/src:ro (source code, read-only)
-
-# Interactive shell for debugging
-docker compose run --rm mc-classifier bash
-```
-
-### Alternative: Direct Docker Run
-
-You can also run the container directly without docker compose:
-```bash
-# Build the image
-docker build -t mc-classifier:latest .
-
-# Run any module
-docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/configs:/app/configs" --env-file .env mc-classifier:latest retrieve-mc-docs --help
-```
 
 For example, if you use Conda, you would run the following to create an environment named `template` with python version 3.10, then activate it and install the package in developer mode:
 ```
@@ -228,6 +139,91 @@ Obtaining file:///home/virginia/workspace/PythonProjectTemplate
     Preparing wheel metadata ... done
 Collecting numpy
 ...
+```
+
+## Environment Variables
+
+To use the document retriever script, you must set the `MC_API_KEY` environment variable. To use the label studio uploader script, you must set `LABEL_STUDIO_HOST` and `LABEL_STUDIO_TOKEN` environment variables. Both scripts uses the `python-dotenv` library, so you can create a `.env` file in the project's root directory:
+
+```
+MC_API_KEY="YOUR_MEDIA_CLOUD_API_KEY_HERE"
+LABEL_STUDIO_HOST="YOUR_LABEL_STUDIO_HOST_HERE"
+LABEL_STUDIO_TOKEN="YOUR_LABEL_STUDIO_TOKEN_HERE"
+```
+
+The script will automatically load this variable.
+
+# Running with Docker
+
+For containerized deployment, this project includes Docker configuration that packages all dependencies and provides a consistent runtime environment across different systems.
+
+### Prerequisites
+
+Ensure Docker and Docker Compose are installed on your system:
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (recommended for Windows/macOS)
+- [Docker Engine](https://docs.docker.com/engine/install/) (for Linux)
+
+Make sure you have configured the required environment variables as described in the [Environment Variables](#environment-variables) section above.
+
+### Quick Start
+
+```bash
+# Build the container
+docker-compose build
+
+# Run any script by replacing the python command with docker-compose
+# Example: Convert this native command:
+python -m mc_classifier_pipeline.data_ingest --query "climate change" --project-id 123
+
+# To this Docker command:
+docker-compose run --rm mc-classifier mc-data-ingest --query "climate change" --project-id 123
+```
+
+### Docker Command Equivalents
+
+
+All scripts from the [Full Workflow](#full-workflow) section can be run with Docker by using this pattern:
+
+| Native Command | Docker Equivalent |
+|----------------|-------------------|
+| `python -m mc_classifier_pipeline.data_ingest` | `docker-compose run --rm mc-classifier mc-data-ingest` |
+| `python -m mc_classifier_pipeline.model_orchestrator` | `docker-compose run --rm mc-classifier mc-model-orchestrator` |
+| `python -m mc_classifier_pipeline.inference` | `docker-compose run --rm mc-classifier mc-inference` |
+
+<br>
+
+All scripts from the [Individual Scripts](#individual-scripts) sections can be run with Docker by using this pattern:
+
+| Native Command | Docker Equivalent |
+|----------------|-------------------|
+| `python -m mc_classifier_pipeline.doc_retriever` | `docker-compose run --rm mc-classifier retrieve-mc-docs` |
+| `python -m mc_classifier_pipeline.preprocessing` | `docker-compose run --rm mc-classifier mc-preprocess` |
+| `python -m mc_classifier_pipeline.trainer` | `docker-compose run --rm mc-classifier mc-train` |
+| `python -m mc_classifier_pipeline.evaluation` | `docker-compose run --rm mc-classifier mc-evaluate` |
+| `python -m mc_classifier_pipeline.query_keyword_expander` | `docker-compose run --rm mc-classifier mc-query-expander` |
+
+### Development with Docker
+
+For development, mount local source code and data directories:
+```bash
+# The docker-compose.yml includes volume mounts for:
+# - ./data:/app/data (data files)
+# - ./experiments:/app/experiments (model outputs)
+# - ./configs:/app/configs:ro (configuration files, read-only)
+# - ./src:/app/src:ro (source code, read-only)
+
+# Interactive shell for debugging
+docker compose run --rm mc-classifier bash
+
+# Inside the container, you can run any script directly:
+mc-model-orchestrator --help
+python -m mc_classifier_pipeline.doc_retriever --help
+
+# View logs
+docker-compose logs -f
+
+# Clean up
+docker-compose down --remove-orphans
 ```
 
 # Running the Scripts
@@ -280,6 +276,8 @@ python -m mc_classifier_pipeline.model_orchestrator \
  --models-config CONFIG_FILE_PATH
 ```
 
+**Note**: See [`configs/README.md`](configs/README.md) for detailed model configuration options and examples.
+
 ### Examples
 
 **Basic model training:**
@@ -329,7 +327,7 @@ python -m mc_classifier_pipeline.model_orchestrator \
 Run inference on articles from URLs using trained models
 
 ```bash
-python -m src.mc_classifier_pipeline.inference \
+python -m mc_classifier_pipeline.inference \
  --url-file URL_LIST_FILE \
  --model-dir MODEL_DIRECTORY
 ```
@@ -338,14 +336,14 @@ python -m src.mc_classifier_pipeline.inference \
 
 **Basic usage:**
 ```bash
-python -m src.mc_classifier_pipeline.inference \
+python -m mc_classifier_pipeline.inference \
  --url-file url_list.txt \
  --model-dir experiments/project_1/20250806_103847/models/20250806_123513_000
 ```
 
 **With custom parameters:**
 ```bash
-python -m src.mc_classifier_pipeline.inference \
+python -m mc_classifier_pipeline.inference \
  --url-file my_urls.txt \
  --model-dir models/bert_model \
  --output-file my_predictions.csv \
@@ -366,6 +364,50 @@ python -m src.mc_classifier_pipeline.inference \
 | `--end-date` | Filter articles by end date (YYYY-MM-DD format, optional) |
 
 # Individual Scripts
+
+For more granular control, you can run individual pipeline components:
+
+**Document Retrieval:**
+
+Retrieves documents from Media Cloud based on search queries and date ranges.
+
+```bash
+python -m mc_classifier_pipeline.doc_retriever --help
+```
+
+**Label Studio Upload:**
+
+Uploads article data to Label Studio projects for annotation.
+
+```bash
+python -m mc_classifier_pipeline.label_studio_uploader --help
+```
+
+**Data Preprocessing:**
+
+Downloads labeled data from Label Studio and splits it into training and test sets.
+
+```bash
+python -m mc_classifier_pipeline.preprocessing --help
+```
+
+**Model Training:**
+
+Trains machine learning models using configuration files and preprocessed data.
+
+```bash
+python -m mc_classifier_pipeline.trainer --help
+```
+
+**Model Evaluation:**
+
+Evaluates trained models and generates performance metrics and leaderboards.
+
+```bash
+python -m mc_classifier_pipeline.evaluation --help
+```
+
+
 
 ## Additional Tools
 
