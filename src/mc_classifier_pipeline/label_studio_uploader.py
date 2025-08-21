@@ -70,7 +70,7 @@ def build_uploader_parser(add_help=True):
     )
 
     parser.add_argument(
-        "--project_id",
+        "--project-id",
         "-p",
         type=int,
         required=True,

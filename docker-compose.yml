@@ -13,6 +13,6 @@ services:
       - ./experiments:/app/experiments
       - ./configs:/app/configs:ro
       - ./src:/app/src:ro
-    command: ["mc_classifier", "doc_retriever", "--help"]
+    command: ["python", "-m", "mc_classifier_pipeline.doc_retriever", "--help"]
     tty: true
     working_dir: /app

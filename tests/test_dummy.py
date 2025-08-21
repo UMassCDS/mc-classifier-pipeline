@@ -18,7 +18,7 @@ def test_package_imports():
         evaluation,
         label_studio_uploader,
         preprocessing,
-        run_pipeline,
+        data_ingest,
         sk_naive_bayes_recipe,
         trainer,
         utils,
@@ -32,7 +32,7 @@ def test_package_imports():
     assert evaluation is not None
     assert label_studio_uploader is not None
     assert preprocessing is not None
-    assert run_pipeline is not None
+    assert data_ingest is not None
     assert sk_naive_bayes_recipe is not None
     assert trainer is not None
     assert utils is not None
